@@ -17,6 +17,7 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 // ─── Closure State ─────────────────────────────────────────────────
 let piRef: ExtensionAPI;
 let currentCtx: ExtensionContext | undefined;
+let currentCwd: string | undefined;
 let tuiRef: TUI | undefined;
 let footerDataProvider: ReadonlyFooterDataProvider | undefined;
 let gitChanges: string = "";
@@ -89,7 +90,7 @@ function colorCodeGitChanges(changes: string, theme: Theme): string {
 
 // ─── Git Diff ──────────────────────────────────────────────────────
 async function refreshGitDiff(): Promise<void> {
-  const cwd = currentCtx?.cwd;
+  const cwd = currentCwd;
   if (!cwd || gitDiffInFlight) return;
   gitDiffInFlight = true;
 
@@ -158,7 +159,7 @@ function buildLspLintLine(
 
 function renderFooterLine(width: number, theme: Theme): string[] {
   // Left side: cwd + branch + git changes
-  const cwdDisplay = shortenPath(currentCtx?.cwd || "");
+  const cwdDisplay = shortenPath(currentCwd || "");
   const branch = footerDataProvider?.getGitBranch?.() ?? null;
   const leftParts: string[] = [];
   leftParts.push(theme.fg("dim", cwdDisplay));
@@ -357,6 +358,23 @@ function setupUI(ctx: ExtensionContext): void {
   }), { placement: "aboveEditor" });
 }
 
+/** Check if an error is a stale-context error (session was replaced/reloaded mid-handler). */
+function isStaleError(e: unknown): boolean {
+  return e instanceof Error && e.message.includes("stale");
+}
+
+/** Safely extract cwd and update currentCtx, returning false if context is stale. */
+function safeUpdateCtx(ctx: ExtensionContext): boolean {
+  try {
+    currentCtx = ctx;
+    currentCwd = ctx.cwd;
+    return true;
+  } catch (e) {
+    if (isStaleError(e)) return false;
+    throw e;
+  }
+}
+
 function cleanup(): void {
   if (gitDiffTimer) {
     clearTimeout(gitDiffTimer);
@@ -364,6 +382,7 @@ function cleanup(): void {
   }
   gitChanges = "";
   currentCtx = undefined;
+  currentCwd = undefined;
   tuiRef = undefined;
   footerDataProvider = undefined;
 }
@@ -373,7 +392,7 @@ export default function (pi: ExtensionAPI): void {
   piRef = pi;
 
   pi.on("session_start", async (_event, ctx) => {
-    currentCtx = ctx;
+    if (!safeUpdateCtx(ctx)) return;
     if (gitDiffTimer) {
       clearTimeout(gitDiffTimer);
       gitDiffTimer = undefined;
@@ -383,7 +402,7 @@ export default function (pi: ExtensionAPI): void {
   });
 
   pi.on("session_tree", async (_event, ctx) => {
-    currentCtx = ctx;
+    if (!safeUpdateCtx(ctx)) return;
     if (gitDiffTimer) {
       clearTimeout(gitDiffTimer);
       gitDiffTimer = undefined;
@@ -396,22 +415,22 @@ export default function (pi: ExtensionAPI): void {
   });
 
   pi.on("turn_end", async (_event, ctx) => {
-    currentCtx = ctx;
+    if (!safeUpdateCtx(ctx)) return;
     refreshGitDiff();
   });
 
   pi.on("model_select", async (_event, ctx) => {
-    currentCtx = ctx;
+    if (!safeUpdateCtx(ctx)) return;
     requestRefresh();
   });
 
   pi.on("thinking_level_select", async (_event, ctx) => {
-    currentCtx = ctx;
+    if (!safeUpdateCtx(ctx)) return;
     requestRefresh();
   });
 
   pi.on("tool_result", async (event, ctx) => {
-    currentCtx = ctx;
+    if (!safeUpdateCtx(ctx)) return;
     if (isWriteToolResult(event) || isEditToolResult(event) || isBashToolResult(event)) {
       debouncedRefreshGitDiff();
       // debouncedRefreshGitDiff calls requestRefresh() after completing, so skip here
@@ -419,7 +438,7 @@ export default function (pi: ExtensionAPI): void {
   });
 
   pi.on("message_end", async (_event, ctx) => {
-    currentCtx = ctx;
+    if (!safeUpdateCtx(ctx)) return;
     requestRefresh();
   });
 }
