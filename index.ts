@@ -65,6 +65,28 @@ function parseGitShortstat(output: string): string {
   return "";
 }
 
+/**
+ * Apply green/red coloring to git shortstat output like "+388 -245".
+ * Each numeric portion is colored individually.
+ */
+function colorCodeGitChanges(changes: string, theme: Theme): string {
+  const insertionMatch = changes.match(/^[+](\d+)/);
+  const deletionMatch = changes.match(/-(\d+)$/);
+
+  if (insertionMatch && deletionMatch) {
+    // "+388 -245"
+    return theme.fg("success", `+${insertionMatch[1]}`) + " " + theme.fg("error", `-${deletionMatch[1]}`);
+  } else if (insertionMatch) {
+    // "+388" only
+    return theme.fg("success", changes);
+  } else if (deletionMatch) {
+    // "-245" only
+    return theme.fg("error", changes);
+  }
+  // Fallback
+  return theme.fg("dim", changes);
+}
+
 // ─── Git Diff ──────────────────────────────────────────────────────
 async function refreshGitDiff(): Promise<void> {
   const cwd = currentCtx?.cwd;
@@ -105,6 +127,35 @@ function requestRefresh(): void {
 }
 
 // ─── Footer Renderer ───────────────────────────────────────────────
+function buildLspLintLine(
+  width: number,
+  theme: Theme,
+  statuses: ReadonlyMap<string, string> | undefined,
+): string | null {
+  if (!statuses) return null;
+
+  const lspStatus = statuses.get("pi-lsp");
+  const lintStatus = statuses.get("pi-lint");
+
+  const parts: string[] = [];
+  if (lspStatus) {
+    parts.push(theme.fg("muted", "LSP:") + " " + theme.fg("dim", lspStatus));
+  }
+  if (lintStatus) {
+    parts.push(theme.fg("muted", "Linter:") + " " + theme.fg("dim", lintStatus));
+  }
+
+  if (parts.length === 0) return null;
+
+  const str = parts.join(theme.fg("dim", " \u2022 "));
+  const strW = visibleWidth(str);
+  if (strW <= width) {
+    const pad = Math.max(0, Math.floor((width - strW) / 2));
+    return " ".repeat(pad) + str;
+  }
+  return truncateToWidth(str, width, "");
+}
+
 function renderFooterLine(width: number, theme: Theme): string[] {
   // Left side: cwd + branch + git changes
   const cwdDisplay = shortenPath(currentCtx?.cwd || "");
@@ -115,7 +166,7 @@ function renderFooterLine(width: number, theme: Theme): string[] {
     leftParts.push(theme.fg("accent", `(${branch})`));
   }
   if (gitChanges) {
-    leftParts.push(theme.fg("dim", gitChanges));
+    leftParts.push(colorCodeGitChanges(gitChanges, theme));
   }
   const left = leftParts.join(" ");
 
@@ -147,30 +198,44 @@ function renderFooterLine(width: number, theme: Theme): string[] {
 
   const model = currentCtx?.model;
   const modelDisplay = model?.id ?? "no-model";
-  const thinkingLevel = piRef?.getThinkingLevel?.();
-  let modelStr = modelDisplay;
-  if (model?.reasoning && thinkingLevel) {
-    modelStr += ` \u2022 ${thinkingLevel}`;
+  const provider = model?.provider;
+  const modelRegistry = currentCtx?.modelRegistry;
+  let providerName = "";
+  if (provider) {
+    if (modelRegistry) {
+      providerName = modelRegistry.getProviderDisplayName(provider);
+    } else {
+      providerName = provider;
+    }
   }
-  modelStr = theme.fg("dim", modelStr);
+
+  const thinkingLevel = piRef?.getThinkingLevel?.();
+  let modelStr = "";
+  if (providerName) {
+    modelStr = theme.fg("muted", `(${providerName}) `);
+  }
+  modelStr += theme.fg("dim", modelDisplay);
+  if (model?.reasoning && thinkingLevel) {
+    modelStr += theme.fg("dim", ` \u2022 ${thinkingLevel}`);
+  }
 
   const right = contextStr + " " + modelStr;
 
-  // Compose line with left/right alignment
+  // Compose line 1 with left/right alignment
   const leftW = visibleWidth(left);
   const rightW = visibleWidth(right);
 
+  let line1: string;
   if (leftW + 2 + rightW <= width) {
     const pad = " ".repeat(width - leftW - rightW);
-    return [left + pad + right];
+    line1 = left + pad + right;
   } else if (width - leftW - 2 > 0) {
     const availableForRight = width - leftW - 2;
     const truncatedRight = truncateToWidth(right, availableForRight, "");
     const actualRightW = visibleWidth(truncatedRight);
     const pad = " ".repeat(width - leftW - actualRightW);
-    return [left + pad + truncatedRight];
+    line1 = left + pad + truncatedRight;
   } else if (isContextWarning) {
-    // Preserve context warning even when left side must be truncated
     const minRight = percent! > 90
       ? theme.fg("error", `${percent.toFixed(0)}%`)
       : theme.fg("warning", `${percent.toFixed(0)}%`);
@@ -178,12 +243,19 @@ function renderFooterLine(width: number, theme: Theme): string[] {
     if (minRightW + 2 <= width) {
       const truncatedLeft = truncateToWidth(left, width - minRightW - 2, "");
       const truncatedLeftW = visibleWidth(truncatedLeft);
-      return [truncatedLeft + " ".repeat(width - truncatedLeftW - minRightW) + minRight];
+      line1 = truncatedLeft + " ".repeat(width - truncatedLeftW - minRightW) + minRight;
+    } else {
+      line1 = truncateToWidth(left, width, "");
     }
-    return [truncateToWidth(left, width, "")];
   } else {
-    return [truncateToWidth(left, width, "")];
+    line1 = truncateToWidth(left, width, "");
   }
+
+  // Line 2 (optional): LSP and Lint status, centered
+  const statuses = footerDataProvider?.getExtensionStatuses?.();
+  const line2 = buildLspLintLine(width, theme, statuses);
+
+  return line2 ? [line1, line2] : [line1];
 }
 
 // ─── Above-Editor Widget Renderer ─────────────────────────────────
@@ -193,43 +265,57 @@ function renderAboveWidget(width: number, theme: Theme): string[] {
 
   const tillDoneStatus = statuses.get("till-done");
   const tillDoneActiveRaw = statuses.get("till-done-active");
+  const workflowStatus = statuses.get("workflow");
   const rpirStatus = statuses.get("rpir-workflow");
 
   const hasTodoStatus = tillDoneStatus !== undefined;
   const hasActiveItems = tillDoneActiveRaw !== undefined && tillDoneActiveRaw.length > 0;
-  const hasRpirStatus = rpirStatus !== undefined;
+  const hasWorkflow = workflowStatus !== undefined;
+  const hasRpir = rpirStatus !== undefined;
 
-  if (!hasTodoStatus && !hasActiveItems && !hasRpirStatus) return [];
+  if (!hasTodoStatus && !hasActiveItems && !hasWorkflow && !hasRpir) return [];
 
   const lines: string[] = [];
 
-  // Line 1: todo count (left) + rpir phase (right)
-  const leftRaw = hasTodoStatus ? stripAnsi(tillDoneStatus) : "";
-  const right = hasRpirStatus ? stripAnsi(rpirStatus) : "";
-
-  if (leftRaw && right) {
-    const leftW = visibleWidth(leftRaw);
-    const rightW = visibleWidth(right);
-    if (leftW + 2 + rightW <= width) {
-      lines.push(leftRaw + " ".repeat(width - leftW - rightW) + right);
-    } else if (leftW + 3 <= width) {
-      const sep = theme.fg("dim", " │ ");
-      lines.push(leftRaw + sep + truncateToWidth(right, width - leftW - 3, ""));
-    } else {
-      lines.push(truncateToWidth(leftRaw + " " + right, width, ""));
-    }
-  } else if (leftRaw) {
-    lines.push(leftRaw);
-  } else if (right) {
-    lines.push(" ".repeat(Math.max(0, width - visibleWidth(right))) + right);
-  }
-
-  // Active item lines
+  // ── Section 1: Active todo items (top) ──
   if (hasActiveItems) {
     const activeItems = tillDoneActiveRaw!.split("\n");
     for (const item of activeItems) {
       const themed = theme.fg("warning", "\u25cf ") + theme.fg("accent", item);
       lines.push(truncateToWidth(themed, width, ""));
+    }
+  }
+
+  // ── Section 2: Progress line (bottom, closest to composer) ──
+  // Left: todo progress (till-done status, e.g., "📋 5/11")
+  // Right: workflow status (pi-workflows or rpir-workflow)
+  const leftRaw = hasTodoStatus ? stripAnsi(tillDoneStatus) : "";
+  const leftStyled = hasTodoStatus ? tillDoneStatus : "";
+
+  // Prefer pi-workflows status for right side; fall back to rpir-workflow
+  const rightRaw = hasWorkflow ? stripAnsi(workflowStatus)
+    : hasRpir ? stripAnsi(rpirStatus)
+    : "";
+  const rightStyled = hasWorkflow ? workflowStatus
+    : hasRpir ? rpirStatus
+    : "";
+
+  if (leftRaw || rightRaw) {
+    if (leftRaw && rightRaw) {
+      const leftW = visibleWidth(leftRaw);
+      const rightW = visibleWidth(rightRaw);
+      if (leftW + 2 + rightW <= width) {
+        lines.push(leftStyled + " ".repeat(width - leftW - rightW) + rightStyled);
+      } else if (leftW + 3 <= width) {
+        const sep = theme.fg("dim", " │ ");
+        lines.push(leftStyled + sep + truncateToWidth(rightStyled, width - leftW - 3, ""));
+      } else {
+        lines.push(truncateToWidth(leftStyled + " " + rightStyled, width, ""));
+      }
+    } else if (leftRaw) {
+      lines.push(leftStyled);
+    } else if (rightRaw) {
+      lines.push(" ".repeat(Math.max(0, width - visibleWidth(rightRaw))) + rightStyled);
     }
   }
 
