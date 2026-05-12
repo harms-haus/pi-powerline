@@ -21,6 +21,7 @@ let tuiRef: TUI | undefined;
 let footerDataProvider: ReadonlyFooterDataProvider | undefined;
 let gitChanges: string = "";
 let gitDiffTimer: ReturnType<typeof setTimeout> | undefined;
+let gitDiffInFlight = false;
 
 // ─── Helpers ───────────────────────────────────────────────────────
 function formatTokens(count: number): string {
@@ -67,7 +68,8 @@ function parseGitShortstat(output: string): string {
 // ─── Git Diff ──────────────────────────────────────────────────────
 async function refreshGitDiff(): Promise<void> {
   const cwd = currentCtx?.cwd;
-  if (!cwd) return;
+  if (!cwd || gitDiffInFlight) return;
+  gitDiffInFlight = true;
 
   try {
     const result = await piRef.exec("git", ["diff", "--shortstat", "HEAD"], {
@@ -82,6 +84,8 @@ async function refreshGitDiff(): Promise<void> {
     }
   } catch {
     gitChanges = "";
+  } finally {
+    gitDiffInFlight = false;
   }
 
   requestRefresh();
@@ -124,6 +128,8 @@ function renderFooterLine(width: number, theme: Theme): string[] {
   let contextDisplay = "";
   if (tokens !== null && percent !== null) {
     contextDisplay = `${formatTokens(tokens)}/${formatTokens(contextWindow)} ${percent.toFixed(1)}%`;
+  } else if (tokens !== null) {
+    contextDisplay = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
   } else if (tokens === null) {
     contextDisplay = `?/${formatTokens(contextWindow)}`;
   }
@@ -136,6 +142,8 @@ function renderFooterLine(width: number, theme: Theme): string[] {
       contextStr = theme.fg("warning", contextDisplay);
     }
   }
+
+  const isContextWarning = percent !== null && percent > 70;
 
   const model = currentCtx?.model;
   const modelDisplay = model?.id ?? "no-model";
@@ -161,6 +169,18 @@ function renderFooterLine(width: number, theme: Theme): string[] {
     const actualRightW = visibleWidth(truncatedRight);
     const pad = " ".repeat(width - leftW - actualRightW);
     return [left + pad + truncatedRight];
+  } else if (isContextWarning) {
+    // Preserve context warning even when left side must be truncated
+    const minRight = percent! > 90
+      ? theme.fg("error", `${percent.toFixed(0)}%`)
+      : theme.fg("warning", `${percent.toFixed(0)}%`);
+    const minRightW = visibleWidth(minRight);
+    if (minRightW + 2 <= width) {
+      const truncatedLeft = truncateToWidth(left, width - minRightW - 2, "");
+      const truncatedLeftW = visibleWidth(truncatedLeft);
+      return [truncatedLeft + " ".repeat(width - truncatedLeftW - minRightW) + minRight];
+    }
+    return [truncateToWidth(left, width, "")];
   } else {
     return [truncateToWidth(left, width, "")];
   }
@@ -184,19 +204,22 @@ function renderAboveWidget(width: number, theme: Theme): string[] {
   const lines: string[] = [];
 
   // Line 1: todo count (left) + rpir phase (right)
-  const left = hasTodoStatus ? tillDoneStatus : "";
+  const leftRaw = hasTodoStatus ? stripAnsi(tillDoneStatus) : "";
   const right = hasRpirStatus ? stripAnsi(rpirStatus) : "";
 
-  if (left && right) {
-    const leftW = visibleWidth(left);
+  if (leftRaw && right) {
+    const leftW = visibleWidth(leftRaw);
     const rightW = visibleWidth(right);
     if (leftW + 2 + rightW <= width) {
-      lines.push(left + " ".repeat(width - leftW - rightW) + right);
+      lines.push(leftRaw + " ".repeat(width - leftW - rightW) + right);
+    } else if (leftW + 3 <= width) {
+      const sep = theme.fg("dim", " │ ");
+      lines.push(leftRaw + sep + truncateToWidth(right, width - leftW - 3, ""));
     } else {
-      lines.push(truncateToWidth(left + " " + right, width, ""));
+      lines.push(truncateToWidth(leftRaw + " " + right, width, ""));
     }
-  } else if (left) {
-    lines.push(left);
+  } else if (leftRaw) {
+    lines.push(leftRaw);
   } else if (right) {
     lines.push(" ".repeat(Math.max(0, width - visibleWidth(right))) + right);
   }
@@ -265,12 +288,20 @@ export default function (pi: ExtensionAPI): void {
 
   pi.on("session_start", async (_event, ctx) => {
     currentCtx = ctx;
+    if (gitDiffTimer) {
+      clearTimeout(gitDiffTimer);
+      gitDiffTimer = undefined;
+    }
     setupUI(ctx);
     refreshGitDiff();
   });
 
   pi.on("session_tree", async (_event, ctx) => {
     currentCtx = ctx;
+    if (gitDiffTimer) {
+      clearTimeout(gitDiffTimer);
+      gitDiffTimer = undefined;
+    }
     refreshGitDiff();
   });
 
@@ -297,8 +328,8 @@ export default function (pi: ExtensionAPI): void {
     currentCtx = ctx;
     if (isWriteToolResult(event) || isEditToolResult(event) || isBashToolResult(event)) {
       debouncedRefreshGitDiff();
+      // debouncedRefreshGitDiff calls requestRefresh() after completing, so skip here
     }
-    requestRefresh();
   });
 
   pi.on("message_end", async (_event, ctx) => {
