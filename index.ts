@@ -264,8 +264,8 @@ function renderAboveWidget(width: number, theme: Theme): string[] {
   const statuses = footerDataProvider?.getExtensionStatuses?.();
   if (!statuses) return [];
 
-  const tillDoneStatus = statuses.get("till-done");
-  const tillDoneActiveRaw = statuses.get("till-done-active");
+  const tillDoneStatus = statuses.get("til-done");
+  const tillDoneActiveRaw = statuses.get("til-done-active");
   const workflowStatus = statuses.get("workflow");
   const rpirStatus = statuses.get("rpir-workflow");
 
@@ -288,7 +288,7 @@ function renderAboveWidget(width: number, theme: Theme): string[] {
   }
 
   // ── Section 2: Progress line (bottom, closest to composer) ──
-  // Left: todo progress (till-done status, e.g., "📋 5/11")
+  // Left: todo progress (til-done status, e.g., "📋 5/11")
   // Right: workflow status (pi-workflows or rpir-workflow)
   const leftRaw = hasTodoStatus ? stripAnsi(tillDoneStatus) : "";
   const leftStyled = hasTodoStatus ? tillDoneStatus : "";

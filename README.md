@@ -34,7 +34,7 @@ Then restart pi or run `/reload`.
 - **Context awareness** — displays token usage with color warnings (yellow >70%, red >90%)
 - **Model info** — shows current provider, model, and thinking level
 - **Extension consolidation** — reads statuses from other extensions via `ctx.ui.setStatus()`:
-  - `pi-till-done` — todo progress and active items
+  - `pi-til-done` — todo progress and active items
   - `pi-rpir-workflow` — current workflow phase
   - `pi-cwd` — changed working directory
 - **Smart truncation** — gracefully handles narrow terminals while preserving context warnings
@@ -46,6 +46,6 @@ Works alongside any extension that uses `ctx.ui.setStatus()`. Extensions that ca
 
 ## Related Extensions
 
-- [pi-till-done](https://github.com/harms-haus/pi-till-done) — Todo list with auto-continue
+- [pi-til-done](https://github.com/harms-haus/pi-til-done) — Todo list with auto-continue
 - [pi-rpir-workflow](https://github.com/harms-haus/pi-rpir-workflow) — 4-phase development workflow
 - [pi-cwd](https://github.com/harms-haus/pi-cwd) — Working directory management
