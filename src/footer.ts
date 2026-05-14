@@ -41,15 +41,73 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
     // Left side: cwd + branch + git changes
     const cwdDisplay = shortenPath(currentCwd || "");
     const branch = footerDataProvider?.getGitBranch?.() ?? null;
-    const leftParts: string[] = [];
-    leftParts.push(theme.fg("dim", cwdDisplay));
-    if (branch) {
-      leftParts.push(theme.fg("accent", `(${branch})`));
+    const statuses = footerDataProvider?.getExtensionStatuses?.();
+
+    // Check for pi-git enriched status
+    const piGitStatusRaw = statuses?.get("pi-git");
+
+    let left: string;
+    if (piGitStatusRaw) {
+      try {
+        const piGit = JSON.parse(piGitStatusRaw) as {
+          cwd: string;
+          branch: string;
+          insertions: number;
+          deletions: number;
+          addedCount: number;
+          modifiedCount: number;
+          deletedCount: number;
+        };
+        if (typeof piGit.cwd !== "string" || typeof piGit.branch !== "string") {
+          throw new Error("Invalid pi-git status");
+        }
+
+        // Location group: cwd (branch)
+        const locationParts: string[] = [];
+        locationParts.push(theme.fg("dim", piGit.cwd));
+        locationParts.push(theme.fg("accent", `(${piGit.branch})`));
+        const location = locationParts.join(" ");
+
+        const groups: string[] = [location];
+
+        // Diff stats group: +N -M
+        const diffParts: string[] = [];
+        if (piGit.insertions > 0) diffParts.push(theme.fg("success", `+${piGit.insertions}`));
+        if (piGit.deletions > 0) diffParts.push(theme.fg("error", `-${piGit.deletions}`));
+        if (diffParts.length > 0) groups.push(diffParts.join(" "));
+
+        // File counts group: n new, o changed, p deleted (per-type colors)
+        const countParts: string[] = [];
+        if (piGit.addedCount > 0) countParts.push(theme.fg("success", `${piGit.addedCount} new`));
+        if (piGit.modifiedCount > 0) countParts.push(theme.fg("warning", `${piGit.modifiedCount} changed`));
+        if (piGit.deletedCount > 0) countParts.push(theme.fg("error", `${piGit.deletedCount} deleted`));
+        if (countParts.length > 0) groups.push(countParts.join(theme.fg("dim", ", ")));
+
+        left = groups.join(theme.fg("dim", " \u2022 "));
+      } catch {
+        // JSON parse failed — fall back to built-in rendering
+        const leftParts: string[] = [];
+        leftParts.push(theme.fg("dim", cwdDisplay));
+        if (branch) {
+          leftParts.push(theme.fg("accent", `(${branch})`));
+        }
+        if (gitChanges) {
+          leftParts.push(colorCodeGitChanges(gitChanges, theme));
+        }
+        left = leftParts.join(" ");
+      }
+    } else {
+      // No pi-git status — use built-in rendering
+      const leftParts: string[] = [];
+      leftParts.push(theme.fg("dim", cwdDisplay));
+      if (branch) {
+        leftParts.push(theme.fg("accent", `(${branch})`));
+      }
+      if (gitChanges) {
+        leftParts.push(colorCodeGitChanges(gitChanges, theme));
+      }
+      left = leftParts.join(" ");
     }
-    if (gitChanges) {
-      leftParts.push(colorCodeGitChanges(gitChanges, theme));
-    }
-    const left = leftParts.join(" ");
 
     // Right side: context usage + model
     const usage = currentCtx?.getContextUsage?.();
@@ -123,7 +181,6 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
     }
 
     // Line 2 (optional): LSP and Lint status, centered
-    const statuses = footerDataProvider?.getExtensionStatuses?.();
     const line2 = buildLspLintLine(width, theme, statuses);
 
     return line2 ? [line1, line2] : [line1];

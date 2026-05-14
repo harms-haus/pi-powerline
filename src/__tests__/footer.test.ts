@@ -235,3 +235,134 @@ describe("renderFooterLine", () => {
     expect(line2Stripped).toContain("2 warnings");
   });
 });
+
+describe("renderFooterLine with pi-git integration", () => {
+  beforeEach(() => {
+    // Same reset as the other describe block
+    (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
+    (state as Record<string, unknown>).currentCtx = undefined;
+    (state as Record<string, unknown>).api = undefined;
+    (state as Record<string, unknown>).footerDataProvider = undefined;
+    (git as Record<string, unknown>).gitChanges = null;
+  });
+
+  afterEach(() => {
+    (state as Record<string, unknown>).currentCwd = undefined;
+    (state as Record<string, unknown>).currentCtx = undefined;
+    (state as Record<string, unknown>).api = undefined;
+    (state as Record<string, unknown>).footerDataProvider = undefined;
+    (git as Record<string, unknown>).gitChanges = null;
+  });
+
+  it("renders pi-git enriched label when status is present", () => {
+    const piGitJson = JSON.stringify({
+      cwd: "~/project",
+      branch: "feature",
+      insertions: 100,
+      deletions: 50,
+      addedCount: 2,
+      modifiedCount: 3,
+      deletedCount: 1,
+    });
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-git", piGitJson]]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    // Use generous width since mock theme tags count as visible chars
+    const result = renderFooterLine(300, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    expect(stripped).toContain("~/project");
+    expect(stripped).toContain("(feature)");
+    expect(stripped).toContain("+100");
+    expect(stripped).toContain("-50");
+    expect(stripped).toContain("2 new");
+    expect(stripped).toContain("3 changed");
+    expect(stripped).toContain("1 deleted");
+    // pi-git branch overrides built-in branch
+    expect(stripped).not.toContain("(main)");
+    // Bullet separators between groups
+    expect(stripped).toContain("\u2022");
+  });
+
+  it("falls back to built-in when pi-git status is absent", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () => new Map<string, string>(),
+    } as unknown as ReadonlyFooterDataProvider;
+    (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    expect(stripped).toContain("(main)");
+    expect(stripped).toContain("+10");
+    expect(stripped).toContain("-5");
+  });
+
+  it("falls back gracefully when pi-git status is malformed JSON", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-git", "not-json"]]),
+    } as unknown as ReadonlyFooterDataProvider;
+    (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    // Falls back to built-in rendering
+    expect(stripped).toContain("+10");
+    expect(stripped).toContain("-5");
+  });
+
+  it("falls back gracefully when pi-git JSON has missing required fields", () => {
+    const piGitJson = JSON.stringify({ cwd: "~/project" }); // missing branch
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-git", piGitJson]]),
+    } as unknown as ReadonlyFooterDataProvider;
+    (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    // Falls back to built-in rendering
+    expect(stripped).toContain("(main)");
+    expect(stripped).toContain("+10");
+    expect(stripped).toContain("-5");
+  });
+
+  it("omits zero-count segments from pi-git label", () => {
+    const piGitJson = JSON.stringify({
+      cwd: "~/project",
+      branch: "dev",
+      insertions: 20,
+      deletions: 0,
+      addedCount: 0,
+      modifiedCount: 5,
+      deletedCount: 0,
+    });
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-git", piGitJson]]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    expect(stripped).not.toContain("0 new");
+    expect(stripped).not.toContain("0 deleted");
+    expect(stripped).toContain("+20");
+    expect(stripped).toContain("5 changed");
+  });
+});
