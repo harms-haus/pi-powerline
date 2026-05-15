@@ -435,3 +435,127 @@ describe("renderFooterLine with pi-git integration", () => {
     expect(stripped).toContain("5 changed");
   });
 });
+
+describe("buildLine2 truncation", () => {
+  const longStatus =
+    "This-is-a-really-long-process-status-string-that-exceeds-the-limit";
+
+  beforeEach(() => {
+    (state as Record<string, unknown>).currentCwd =
+      "/home/testuser/project";
+    (state as Record<string, unknown>).currentCtx = undefined;
+    (state as Record<string, unknown>).api = undefined;
+    (state as Record<string, unknown>).footerDataProvider = undefined;
+    (git as Record<string, unknown>).gitChanges = null;
+  });
+
+  afterEach(() => {
+    (state as Record<string, unknown>).currentCwd = undefined;
+    (state as Record<string, unknown>).currentCtx = undefined;
+    (state as Record<string, unknown>).api = undefined;
+    (state as Record<string, unknown>).footerDataProvider = undefined;
+    (git as Record<string, unknown>).gitChanges = null;
+  });
+
+  it("truncates left part to 1/3 width when both left and center exist", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", longStatus],
+          ["pi-lsp", "0 errors"],
+          ["pi-lint", "2 warnings"],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const width = 120;
+    const result = renderFooterLine(width, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    const line2Stripped = stripTags(line2);
+
+    // Full status should NOT appear — it was truncated
+    expect(line2Stripped).not.toContain(longStatus);
+    // But the beginning of the status should still be present (left-aligned)
+    expect(line2Stripped.startsWith("This-is-a-really")).toBe(true);
+    // Total visible width should equal the requested width
+    expect(visibleWidth(line2)).toBe(width);
+  });
+
+  it("does NOT truncate left part when only left exists (no center)", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-processes", longStatus]]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const width = 120;
+    const result = renderFooterLine(width, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+
+    // Full status should appear — no truncation without center
+    expect(line2Stripped).toContain(longStatus);
+    expect(line2Stripped.startsWith(longStatus)).toBe(true);
+  });
+
+  it("does NOT truncate left part when it is short enough", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 procs"],
+          ["pi-lsp", "0 errors"],
+          ["pi-lint", "2 warnings"],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const width = 120;
+    const result = renderFooterLine(width, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+
+    // Short status should appear in full
+    expect(line2Stripped).toContain("3 procs");
+    expect(line2Stripped.startsWith("3 procs")).toBe(true);
+    // Total visible width should match
+    expect(visibleWidth(result[1])).toBe(width);
+  });
+
+  it("center is still properly centered after left truncation", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", longStatus],
+          ["pi-lsp", "0 errors"],
+          ["pi-lint", "2 warnings"],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const width = 120;
+    const result = renderFooterLine(width, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+
+    // Both left and center content should be present
+    expect(line2Stripped).toContain("LSP");
+    expect(line2Stripped).toContain("Linter");
+
+    // Center should appear after the left part (not at position 0)
+    const lspIndex = line2Stripped.indexOf("LSP");
+    expect(lspIndex).toBeGreaterThan(0);
+
+    // There should be whitespace between left part and center
+    const beforeLsp = line2Stripped.substring(0, lspIndex);
+    expect(beforeLsp).toMatch(/\s+$/);
+
+    // There should be trailing whitespace after center content
+    // (proving center is not jammed to the right edge)
+    expect(line2Stripped).toMatch(/\s+$/);
+  });
+});

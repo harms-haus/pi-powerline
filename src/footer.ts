@@ -20,7 +20,7 @@ function buildLine2(
   const lintStatus = statuses.get("pi-lint");
 
   // Build left part (process count)
-  const leftPart = processStatus ? theme.fg("muted", processStatus) : "";
+  let leftPart = processStatus ? theme.fg("muted", processStatus) : "";
 
   // Build center part (LSP/Lint)
   const centerParts: string[] = [];
@@ -53,7 +53,12 @@ function buildLine2(
   }
 
   // Both: left-aligned process count + center-aligned LSP/Lint in remaining space
-  const leftW = visibleWidth(leftPart);
+  const maxLeftW = Math.floor(width / 3);
+  let leftW = visibleWidth(leftPart);
+  if (leftW > maxLeftW) {
+    leftPart = truncateToWidth(leftPart, maxLeftW, "");
+    leftW = visibleWidth(leftPart);
+  }
   const centerW = visibleWidth(centerPart);
   const remainingWidth = width - leftW;
   if (centerW <= remainingWidth) {
