@@ -7,33 +7,67 @@ import { alignLeftRight, formatTokens, shortenPath } from "./helpers";
 const CONTEXT_WARNING_THRESHOLD = 70;
 const CONTEXT_CRITICAL_THRESHOLD = 90;
 
-function buildLspLintLine(
+/** Build footer line 2 with optional left-aligned process count and center-aligned LSP/Lint status */
+function buildLine2(
   width: number,
   theme: Theme,
   statuses: ReadonlyMap<string, string> | undefined,
 ): string | null {
   if (!statuses) return null;
 
+  const processStatus = statuses.get("pi-processes");
   const lspStatus = statuses.get("pi-lsp");
   const lintStatus = statuses.get("pi-lint");
 
-  const parts: string[] = [];
+  // Build left part (process count)
+  const leftPart = processStatus ? theme.fg("muted", processStatus) : "";
+
+  // Build center part (LSP/Lint)
+  const centerParts: string[] = [];
   if (lspStatus) {
-    parts.push(theme.fg("muted", "LSP:") + " " + theme.fg("dim", lspStatus));
+    centerParts.push(theme.fg("muted", "LSP:") + " " + theme.fg("dim", lspStatus));
   }
   if (lintStatus) {
-    parts.push(theme.fg("muted", "Linter:") + " " + theme.fg("dim", lintStatus));
+    centerParts.push(theme.fg("muted", "Linter:") + " " + theme.fg("dim", lintStatus));
+  }
+  const centerPart =
+    centerParts.length > 0
+      ? centerParts.join(theme.fg("dim", " \u2022 "))
+      : "";
+
+  if (!leftPart && !centerPart) return null;
+
+  if (!leftPart) {
+    // No process status — just center the LSP/Lint (original behavior)
+    const strW = visibleWidth(centerPart);
+    if (strW <= width) {
+      const pad = Math.max(0, Math.floor((width - strW) / 2));
+      return " ".repeat(pad) + centerPart;
+    }
+    return truncateToWidth(centerPart, width, "");
   }
 
-  if (parts.length === 0) return null;
-
-  const str = parts.join(theme.fg("dim", " \u2022 "));
-  const strW = visibleWidth(str);
-  if (strW <= width) {
-    const pad = Math.max(0, Math.floor((width - strW) / 2));
-    return " ".repeat(pad) + str;
+  if (!centerPart) {
+    // No LSP/Lint — just show process count left-aligned
+    return leftPart + " ".repeat(Math.max(0, width - visibleWidth(leftPart)));
   }
-  return truncateToWidth(str, width, "");
+
+  // Both: left-aligned process count + center-aligned LSP/Lint in remaining space
+  const leftW = visibleWidth(leftPart);
+  const centerW = visibleWidth(centerPart);
+  const remainingWidth = width - leftW;
+  if (centerW <= remainingWidth) {
+    const centerPad = Math.max(0, Math.floor((remainingWidth - centerW) / 2));
+    const rightPad = Math.max(
+      0,
+      width - leftW - centerPad - centerW,
+    );
+    return leftPart + " ".repeat(centerPad) + centerPart + " ".repeat(rightPad);
+  }
+  // Center part doesn't fit in remaining space — truncate it
+  const truncated = truncateToWidth(centerPart, remainingWidth, "");
+  const rightPad = Math.max(0, width - leftW - visibleWidth(truncated));
+  return leftPart + truncated + " ".repeat(rightPad);
 }
 
 export function renderFooterLine(width: number, theme: Theme): string[] {
@@ -180,8 +214,8 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
       line1 = alignLeftRight(left, right, width);
     }
 
-    // Line 2 (optional): LSP and Lint status, centered
-    const line2 = buildLspLintLine(width, theme, statuses);
+    // Line 2 (optional): process count (left) + LSP/Lint status (center)
+    const line2 = buildLine2(width, theme, statuses);
 
     return line2 ? [line1, line2] : [line1];
   } catch {

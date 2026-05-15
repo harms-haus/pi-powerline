@@ -340,6 +340,75 @@ describe("renderFooterLine with pi-git integration", () => {
     expect(stripped).toContain("-5");
   });
 
+  it("shows pi-processes status left-aligned on line 2 with center LSP/Lint", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["pi-lsp", "0 errors"],
+          ["pi-lint", "2 warnings"],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+    // Process count should be left-aligned (at position 0)
+    expect(line2Stripped.indexOf("3 processes")).toBe(0);
+    // LSP/Lint should still appear somewhere in the line
+    expect(line2Stripped).toContain("LSP");
+    expect(line2Stripped).toContain("Linter");
+  });
+
+  it("shows only pi-processes on line 2 when no LSP/Lint", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-processes", "3 processes"]]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+    expect(line2Stripped).toContain("3 processes");
+    // Should be left-aligned
+    expect(line2Stripped.indexOf("3 processes")).toBe(0);
+  });
+
+  it("centers LSP/Lint when no pi-processes status", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-lsp", "0 errors"],
+          ["pi-lint", "2 warnings"],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+    expect(line2Stripped).toContain("LSP");
+    expect(line2Stripped).toContain("Linter");
+    // Centered: should not start at position 0
+    expect(line2Stripped.indexOf("LSP")).toBeGreaterThan(0);
+  });
+
+  it("returns single line when no statuses at all", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () => new Map<string, string>(),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(1);
+  });
+
   it("omits zero-count segments from pi-git label", () => {
     const piGitJson = JSON.stringify({
       cwd: "~/project",
