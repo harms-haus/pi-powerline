@@ -27,22 +27,6 @@ function parseGitShortstat(output: string): GitDiffStat | null {
 }
 
 /**
- * Format a GitDiffStat as a human-readable string like "+388 -245".
- */
-export function formatGitChanges(stat: GitDiffStat | null): string {
-  if (!stat) return "";
-  const { insertions, deletions } = stat;
-  if (insertions > 0 && deletions > 0) {
-    return `+${insertions} -${deletions}`;
-  } else if (insertions > 0) {
-    return `+${insertions}`;
-  } else if (deletions > 0) {
-    return `-${deletions}`;
-  }
-  return "";
-}
-
-/**
  * Apply green/red coloring to git diff stat data.
  * Each numeric portion is colored individually.
  */
@@ -62,7 +46,7 @@ export function colorCodeGitChanges(stat: GitDiffStat | null, theme: Theme): str
 // ─── Git Diff ──────────────────────────────────────────────────────
 export async function refreshGitDiff(): Promise<void> {
   const cwd = currentCwd;
-  if (!cwd || gitDiffInFlight) return;
+  if (!cwd || !api || gitDiffInFlight) return;
   gitDiffInFlight = true;
 
   try {
@@ -76,7 +60,8 @@ export async function refreshGitDiff(): Promise<void> {
     } else {
       gitChanges = null;
     }
-  } catch {
+  } catch (error: unknown) {
+    console.error("[pi-powerline] refreshGitDiff error:", error);
     gitChanges = null;
   } finally {
     gitDiffInFlight = false;
@@ -89,7 +74,7 @@ export function debouncedRefreshGitDiff(): void {
   if (gitDiffTimer) clearTimeout(gitDiffTimer);
   gitDiffTimer = setTimeout(() => {
     gitDiffTimer = undefined;
-    refreshGitDiff();
+    void refreshGitDiff();
   }, GIT_DIFF_DEBOUNCE_MS);
 }
 

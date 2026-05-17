@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import type { Theme } from "@earendil-works/pi-coding-agent";
 
 // Mutable backing for the mock — tests update this before importing above-widget
 let mockGetExtensionStatuses: (() => Map<string, string>) | null = null;
@@ -15,7 +14,7 @@ vi.mock("../state", () => ({
 // Dynamic import so the mock is applied before the module is evaluated
 const { renderAboveWidget } = await vi.mocked(await import("../above-widget"));
 
-const mockTheme = { fg: (color: string, text: string) => `[${color}]${text}` } as unknown as Theme;
+import { mockTheme } from "./test-utils.js";
 
 describe("renderAboveWidget", () => {
   beforeEach(() => {
@@ -93,5 +92,48 @@ describe("renderAboveWidget", () => {
     // truncateToWidth limits visible width; with mock theme wrapping, total length may
     // exceed width but visible portion is truncated
     expect(result[0].length).toBeLessThan(30);
+  });
+
+  it("shows overflow indicator when items exceed MAX_ACTIVE_ITEMS", () => {
+    // Create 13 items — should show 10 + overflow indicator
+    const items = Array.from({ length: 13 }, (_, i) => `item ${i + 1}`).join("\n");
+    mockGetExtensionStatuses = () => new Map<string, string>([["til-done-active", items]]);
+    const result = renderAboveWidget(80, mockTheme);
+    // 10 display items + 1 overflow line
+    expect(result.length).toBe(11);
+    // Last line should be the overflow indicator
+    expect(result[10]).toBe("[dim]... +3 more");
+    // First 10 lines should contain the items
+    for (let i = 0; i < 10; i++) {
+      expect(result[i]).toContain(`item ${i + 1}`);
+    }
+  });
+
+  it("renders RPIR-only status right-aligned", () => {
+    mockGetExtensionStatuses = () => new Map<string, string>([["rpir-workflow", "RPIR-7"]]);
+    const result = renderAboveWidget(80, mockTheme);
+    expect(result.length).toBe(1);
+    expect(result[0]).toContain("RPIR-7");
+    // RPIR is right-aligned: line should start with spaces
+    const stripped = result[0].replace(
+      /\[dim\]|\[accent\]|\[warning\]|\[success\]|\[error\]|\[muted\]/g,
+      "",
+    );
+    // Should be right-aligned (starts with spaces before the content)
+    expect(stripped.startsWith(" ")).toBe(true);
+  });
+
+  it("returns [] when getExtensionStatuses throws", () => {
+    mockGetExtensionStatuses = () => {
+      throw new Error("test error");
+    };
+    const result = renderAboveWidget(80, mockTheme);
+    expect(result).toEqual([]);
+  });
+
+  it("returns [] when footerDataProvider is null", () => {
+    mockGetExtensionStatuses = null;
+    const result = renderAboveWidget(80, mockTheme);
+    expect(result).toEqual([]);
   });
 });

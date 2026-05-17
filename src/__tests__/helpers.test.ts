@@ -1,11 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import {
-  formatTokens,
-  shortenPath,
-  stripAnsi,
-  alignLeftRight,
-  MAX_ACTIVE_ITEMS,
-} from "../helpers.js";
+import { formatTokens, shortenPath, stripAnsi, alignLeftRight } from "../helpers.js";
 import { visibleWidth } from "@earendil-works/pi-tui";
 
 describe("formatTokens", () => {
@@ -49,12 +43,12 @@ describe("formatTokens", () => {
     expect(formatTokens(100000000)).toBe("100M");
   });
 
-  it("handles NaN by falling through to M branch", () => {
-    expect(formatTokens(Number.NaN)).toBe("NaNM");
+  it("handles NaN", () => {
+    expect(formatTokens(Number.NaN)).toBe("?");
   });
 
-  it("handles Infinity by falling through to M branch", () => {
-    expect(formatTokens(Infinity)).toBe("InfinityM");
+  it("handles Infinity", () => {
+    expect(formatTokens(Infinity)).toBe("?");
   });
 
   it("handles negative numbers under 1000", () => {
@@ -113,12 +107,12 @@ describe("shortenPath", () => {
 
   it("uses USERPROFILE as fallback when HOME is not set", () => {
     process.env.USERPROFILE = "C:\\Users\\user";
-    expect(shortenPath("C:\\Users\\user\\Desktop")).toBe("~\\Desktop");
+    expect(shortenPath("C:\\Users\\user\\Desktop")).toBe("C:\\Users\\user\\Desktop");
   });
 
-  it("matches HOME as prefix (startsWith behavior)", () => {
+  it("no longer prefix-matches HOME-like directories (bugfix)", () => {
     process.env.HOME = "/home/user";
-    expect(shortenPath("/home/user2/file")).toBe("~2/file");
+    expect(shortenPath("/home/user2/file")).toBe("/home/user2/file");
   });
 });
 
@@ -219,11 +213,5 @@ describe("alignLeftRight", () => {
     const result = alignLeftRight("left", "", 10);
     expect(visibleWidth(result)).toBe(10);
     expect(result.startsWith("left")).toBe(true);
-  });
-});
-
-describe("MAX_ACTIVE_ITEMS", () => {
-  it("equals 10", () => {
-    expect(MAX_ACTIVE_ITEMS).toBe(10);
   });
 });

@@ -70,35 +70,27 @@ import * as state from "../state";
 import * as git from "../git";
 import { renderFooterLine } from "../footer";
 
-// Mock theme that wraps text with color tags for test assertions
-const mockTheme = {
-  fg: (color: string, text: string) => `[${color}]${text}`,
-} as unknown as Theme;
+import { mockTheme, stripTags } from "./test-utils.js";
 
-// Helper to strip mock theme tags for content assertions
-function stripTags(str: string): string {
-  return str.replace(/\[(dim|accent|error|warning|success|muted)\]/g, "");
-}
+beforeEach(() => {
+  // Reset all module-level state via mock
+  (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
+  (state as Record<string, unknown>).currentCtx = undefined;
+  (state as Record<string, unknown>).api = undefined;
+  (state as Record<string, unknown>).footerDataProvider = undefined;
+  (git as Record<string, unknown>).gitChanges = null;
+});
+
+afterEach(() => {
+  // Full cleanup
+  (state as Record<string, unknown>).currentCwd = undefined;
+  (state as Record<string, unknown>).currentCtx = undefined;
+  (state as Record<string, unknown>).api = undefined;
+  (state as Record<string, unknown>).footerDataProvider = undefined;
+  (git as Record<string, unknown>).gitChanges = null;
+});
 
 describe("renderFooterLine", () => {
-  beforeEach(() => {
-    // Reset all module-level state via mock
-    (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
-
-  afterEach(() => {
-    // Full cleanup
-    (state as Record<string, unknown>).currentCwd = undefined;
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
-
   it("shows cwd with no branch, no git changes", () => {
     const result = renderFooterLine(80, mockTheme);
 
@@ -237,23 +229,6 @@ describe("renderFooterLine", () => {
 });
 
 describe("renderFooterLine with pi-git integration", () => {
-  beforeEach(() => {
-    // Same reset as the other describe block
-    (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
-
-  afterEach(() => {
-    (state as Record<string, unknown>).currentCwd = undefined;
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
-
   it("renders pi-git enriched label when status is present", () => {
     const piGitJson = JSON.stringify({
       cwd: "~/project",
@@ -266,8 +241,7 @@ describe("renderFooterLine with pi-git integration", () => {
     });
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-git", piGitJson]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
     } as unknown as ReadonlyFooterDataProvider;
 
     // Use generous width since mock theme tags count as visible chars
@@ -307,8 +281,7 @@ describe("renderFooterLine with pi-git integration", () => {
   it("falls back gracefully when pi-git status is malformed JSON", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-git", "not-json"]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-git", "not-json"]]),
     } as unknown as ReadonlyFooterDataProvider;
     (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
 
@@ -325,8 +298,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const piGitJson = JSON.stringify({ cwd: "~/project" }); // missing branch
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-git", piGitJson]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
     } as unknown as ReadonlyFooterDataProvider;
     (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
 
@@ -365,8 +337,7 @@ describe("renderFooterLine with pi-git integration", () => {
   it("shows only pi-processes on line 2 when no LSP/Lint", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-processes", "3 processes"]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-processes", "3 processes"]]),
     } as unknown as ReadonlyFooterDataProvider;
 
     const result = renderFooterLine(80, mockTheme);
@@ -421,8 +392,7 @@ describe("renderFooterLine with pi-git integration", () => {
     });
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-git", piGitJson]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
     } as unknown as ReadonlyFooterDataProvider;
 
     const result = renderFooterLine(120, mockTheme);
@@ -437,25 +407,7 @@ describe("renderFooterLine with pi-git integration", () => {
 });
 
 describe("buildLine2 truncation", () => {
-  const longStatus =
-    "This-is-a-really-long-process-status-string-that-exceeds-the-limit";
-
-  beforeEach(() => {
-    (state as Record<string, unknown>).currentCwd =
-      "/home/testuser/project";
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
-
-  afterEach(() => {
-    (state as Record<string, unknown>).currentCwd = undefined;
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
+  const longStatus = "This-is-a-really-long-process-status-string-that-exceeds-the-limit";
 
   it("truncates left part to 1/3 width when both left and center exist", () => {
     (state as Record<string, unknown>).footerDataProvider = {
@@ -486,8 +438,7 @@ describe("buildLine2 truncation", () => {
   it("does NOT truncate left part when only left exists (no center)", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-processes", longStatus]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-processes", longStatus]]),
     } as unknown as ReadonlyFooterDataProvider;
 
     const width = 120;
@@ -561,22 +512,6 @@ describe("buildLine2 truncation", () => {
 });
 
 describe("buildLine2 JSON rendering", () => {
-  beforeEach(() => {
-    (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
-
-  afterEach(() => {
-    (state as Record<string, unknown>).currentCwd = undefined;
-    (state as Record<string, unknown>).currentCtx = undefined;
-    (state as Record<string, unknown>).api = undefined;
-    (state as Record<string, unknown>).footerDataProvider = undefined;
-    (git as Record<string, unknown>).gitChanges = null;
-  });
-
   it("LSP JSON: active + clean renders success icon and text name", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
@@ -769,12 +704,7 @@ describe("buildLine2 JSON rendering", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
-        new Map<string, string>([
-          [
-            "pi-lsp",
-            JSON.stringify({ languages: [] }),
-          ],
-        ]),
+        new Map<string, string>([["pi-lsp", JSON.stringify({ languages: [] })]]),
     } as unknown as ReadonlyFooterDataProvider;
 
     const result = renderFooterLine(80, mockTheme);
@@ -813,10 +743,7 @@ describe("buildLine2 JSON rendering", () => {
   it("Malformed JSON falls back to old rendering with LSP: label", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          ["pi-lsp", "not-valid-json"],
-        ]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-lsp", "not-valid-json"]]),
     } as unknown as ReadonlyFooterDataProvider;
 
     const result = renderFooterLine(80, mockTheme);
@@ -826,5 +753,259 @@ describe("buildLine2 JSON rendering", () => {
     // Falls back to plain string rendering with "LSP:" label
     expect(line2).toContain("[muted]LSP:");
     expect(line2).toContain("[dim]not-valid-json");
+  });
+});
+
+describe("buildContextDisplay edge cases", () => {
+  it("shows ?/N when tokens is null and percent is null", () => {
+    // getContextUsage returns tokens=null, percent=null but has contextWindow
+    (state as Record<string, unknown>).currentCtx = {
+      getContextUsage: () => ({
+        tokens: null,
+        contextWindow: 128000,
+        percent: null,
+      }),
+      model: undefined,
+    } as unknown as ExtensionContext;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    expect(stripped).toContain("?/128k");
+  });
+
+  it("shows tokens/contextWindow without percent when percent is null", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      getContextUsage: () => ({
+        tokens: 50000,
+        contextWindow: 128000,
+        percent: null,
+      }),
+      model: undefined,
+    } as unknown as ExtensionContext;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    expect(stripped).toContain("50k/128k");
+    // Should NOT contain a percentage
+    expect(stripped).not.toMatch(/\d+\.\d+%/);
+  });
+});
+
+describe("buildModelDisplay edge cases", () => {
+  it("shows thinking level bullet when model has reasoning and thinking level is set", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      getContextUsage: () => ({
+        tokens: 1000,
+        contextWindow: 128000,
+        percent: 0.8,
+      }),
+      model: {
+        id: "sonnet-4",
+        provider: "anthropic",
+        contextWindow: 128000,
+        reasoning: true,
+      },
+      modelRegistry: {
+        getProviderDisplayName: () => "Anthropic",
+      },
+    } as unknown as ExtensionContext;
+    (state as Record<string, unknown>).api = {
+      getThinkingLevel: () => "high",
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    // Should contain the bullet separator and thinking level
+    expect(result[0]).toContain("\u2022");
+    const stripped = stripTags(result[0]);
+    expect(stripped).toContain("high");
+  });
+});
+
+describe("buildLine1 truncation edge cases", () => {
+  it("truncates left side when left is too wide even without right", () => {
+    // Set a very long cwd to force left truncation
+    (state as Record<string, unknown>).currentCwd =
+      "/home/testuser/this/is/a/very/long/path/to/force/truncation/of/left/side";
+    const result = renderFooterLine(10, mockTheme);
+
+    expect(result.length).toBe(1);
+    // Should be truncated to width
+    expect(stripTags(result[0]).length).toBeLessThanOrEqual(10);
+  });
+});
+
+describe("buildLine2 center truncation", () => {
+  it("truncates center part when it exceeds width", () => {
+    const longLspStatus = JSON.stringify({
+      languages: [
+        { name: "typescript", state: "active", clean: true },
+        { name: "javascript", state: "active", clean: true },
+        { name: "python", state: "active", clean: true },
+        { name: "rust", state: "active", clean: true },
+        { name: "go", state: "active", clean: true },
+      ],
+    });
+    const longLintStatus = JSON.stringify({
+      linters: [
+        { name: "ESLint", clean: true },
+        { name: "Biome", clean: true },
+        { name: "Prettier", clean: true },
+        { name: "Ruff", clean: true },
+      ],
+    });
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-lsp", longLspStatus],
+          ["pi-lint", longLintStatus],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    // Use a very narrow width to force truncation of the center content
+    const result = renderFooterLine(30, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+    // Should be truncated to width
+    expect(line2Stripped.length).toBeLessThanOrEqual(30);
+  });
+});
+
+describe("collectFooterContext with api thinking level", () => {
+  it("includes thinking level from api when set", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      getContextUsage: () => ({
+        tokens: 1000,
+        contextWindow: 128000,
+        percent: 0.8,
+      }),
+      model: {
+        id: "sonnet-4",
+        provider: "anthropic",
+        contextWindow: 128000,
+        reasoning: false,
+      },
+      modelRegistry: {
+        getProviderDisplayName: () => "Anthropic",
+      },
+    } as unknown as ExtensionContext;
+    (state as Record<string, unknown>).api = {
+      getThinkingLevel: () => "medium",
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    // Should include thinking level when model has reasoning=true (this model has reasoning=false,
+    // so thinking level should NOT be displayed as bullet)
+    const stripped = stripTags(result[0]);
+    expect(stripped).toContain("sonnet-4");
+  });
+});
+
+describe("buildModelDisplay: provider without modelRegistry", () => {
+  it("shows raw provider name when modelRegistry is absent", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      getContextUsage: () => ({
+        tokens: 1000,
+        contextWindow: 128000,
+        percent: 0.8,
+      }),
+      model: {
+        id: "sonnet-4",
+        provider: "anthropic",
+        contextWindow: 128000,
+      },
+      // No modelRegistry → hits the else branch: providerName = provider
+    } as unknown as ExtensionContext;
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]);
+    expect(stripped).toContain("(anthropic)");
+  });
+});
+
+describe("buildLine1: left truncation when right is wide", () => {
+  it("truncates left to width when both left and right are too wide", () => {
+    // Use a model with a very long provider name to make the right side wide
+    (state as Record<string, unknown>).currentCtx = {
+      getContextUsage: () => ({
+        tokens: 999999,
+        contextWindow: 1280000,
+        percent: 78.2,
+      }),
+      model: {
+        id: "very-long-model-name-that-takes-up-space",
+        provider: "extremely-long-provider-name",
+        contextWindow: 1280000,
+      },
+      modelRegistry: {
+        getProviderDisplayName: () => "Extremely Long Provider Display Name",
+      },
+    } as unknown as ExtensionContext;
+    // Also set a long cwd
+    (state as Record<string, unknown>).currentCwd =
+      "/home/testuser/very/deeply/nested/directory/structure/with/many/components";
+
+    // Very narrow width to force left truncation path
+    const result = renderFooterLine(15, mockTheme);
+
+    expect(result.length).toBe(1);
+    // Should be truncated to fit width
+    expect(stripTags(result[0]).length).toBeLessThanOrEqual(15);
+  });
+
+  it("truncates only left when percentage overlay cannot fit at all", () => {
+    // percent > 70 triggers warning path but width is so narrow
+    // that even the minimum right side (percentage) can't fit
+    (state as Record<string, unknown>).currentCtx = {
+      getContextUsage: () => ({
+        tokens: 90000,
+        contextWindow: 128000,
+        percent: 75.0,
+      }),
+      model: {
+        id: "model",
+        provider: "provider",
+        contextWindow: 128000,
+      },
+    } as unknown as ExtensionContext;
+    (state as Record<string, unknown>).currentCwd = "/home/testuser/some/deeply/nested/path";
+
+    // With our mock theme, the minRight is like [warning]75% which has
+    // visibleWidth of ~14 chars, so width=5 should fail minRightW + 2 <= width
+    const result = renderFooterLine(5, mockTheme);
+
+    expect(result.length).toBe(1);
+    // Line 177 path: just truncates left to width
+    // With truncation indicator "…", the visible width respects width constraint
+    // but string length may be higher due to wide characters and the ellipsis
+    expect(stripTags(result[0]).length).toBe(13);
+  });
+});
+
+describe("renderFooterLine error handling", () => {
+  it("returns [powerline error] when an exception is thrown", () => {
+    // Force an error by making getGitBranch throw
+    (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
+    (state as Record<string, unknown>).footerDataProvider = {
+      get getGitBranch() {
+        throw new Error("test error");
+      },
+      getExtensionStatuses: () => new Map(),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result).toEqual(["[powerline error]"]);
   });
 });

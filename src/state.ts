@@ -5,7 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { TUI } from "@earendil-works/pi-tui";
 
-export let api: ExtensionAPI;
+export let api: ExtensionAPI | undefined;
 export let currentCtx: ExtensionContext | undefined;
 export let currentCwd: string | undefined;
 export let tuiRef: TUI | undefined;
@@ -15,7 +15,7 @@ export function requestRefresh(): void {
   tuiRef?.requestRender();
 }
 
-export function isStaleError(e: unknown): boolean {
+function isStaleError(e: unknown): boolean {
   return e instanceof Error && e.message.includes("stale");
 }
 

@@ -28,7 +28,9 @@ function setupUI(ctx: ExtensionContext): void {
   ctx.ui.setFooter((_tui, theme, footerData) => {
     setTuiRef(_tui);
     setFooterDataProvider(footerData);
-    const unsubBranch = footerData.onBranchChange(() => _tui.requestRender());
+    const unsubBranch = footerData.onBranchChange(() => {
+      _tui.requestRender();
+    });
 
     return {
       dispose() {
@@ -67,13 +69,13 @@ export default function (pi: ExtensionAPI): void {
     if (!safeUpdateCtx(ctx)) return;
     clearGitTimer();
     setupUI(ctx);
-    refreshGitDiff();
+    void refreshGitDiff();
   });
 
   pi.on("session_tree", (_event, ctx) => {
     if (!safeUpdateCtx(ctx)) return;
     clearGitTimer();
-    refreshGitDiff();
+    void refreshGitDiff();
   });
 
   pi.on("session_shutdown", () => {
