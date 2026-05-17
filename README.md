@@ -21,11 +21,62 @@ Then restart pi or run `/reload`.
 
 ### Below the Composer (Footer)
 
+**Line 1:**
+
 | Left | Right |
 |------|-------|
 | Working directory (`~/project`) | Context usage (`15k/1.0M 1.5%`) |
 | Git branch (`(main)`) | Model & thinking level (`qwen3.6-plus • medium`) |
 | Git changes (`+388 -124`) | |
+
+**Line 2** (shown when LSP/lint data is available):
+
+| Left | Center |
+|------|--------|
+| Process count (from `pi-processes`) | LSP and lint status (center-aligned) |
+
+## LSP and Lint Status Display
+
+The footer's second line displays real-time LSP server and linter status when data is provided by the `pi-lsp` and `pi-lint` extensions.
+
+### LSP Status
+
+- **Active** servers (currently running) are shown in normal text color
+- **Available** servers (installed but not running) are shown in muted color
+- Each language shows a status icon:
+  - ✓ (green) — clean, no diagnostics
+  - ✗ (red) — dirty, has diagnostics
+  - ✓ (dim) — state unknown (e.g. available but not checked)
+
+### Lint Status
+
+- Shows only **configured** linters (those detected in the current project)
+- Each linter shows a status icon:
+  - ✓ (green) — clean, no issues
+  - ✗ (red) — dirty, has issues
+- All configured linters are displayed in normal text color
+
+### Example
+
+```
+✓typescript ✗rust • ✓ESLint ✗Biome
+```
+
+| Segment | Meaning |
+|---------|----------|
+| `✓typescript` | Active LSP server, clean |
+| `✗rust` | Available (not running) LSP server, dirty |
+| `✓ESLint` | Configured linter, clean |
+| `✗Biome` | Configured linter, dirty |
+
+LSP and lint groups are separated by a dim `•` bullet. The entire status block is center-aligned within the available width.
+
+### Data Source
+
+- **LSP** — `pi-lsp` extension calls `ctx.ui.setStatus("pi-lsp", JSON.stringify({ languages: [{ name, state, clean }] }))` where `state` is `"active"` or another value, and `clean` is `true`, `false`, or `null`
+- **Lint** — `pi-lint` extension calls `ctx.ui.setStatus("pi-lint", JSON.stringify({ linters: [{ name, clean }] }))` where `clean` is `true` or `false`
+
+Both use structured JSON payloads. If the payload is not valid JSON, the raw string is displayed as a muted fallback.
 
 ## Features
 
@@ -37,6 +88,10 @@ Then restart pi or run `/reload`.
   - `pi-til-done` — todo progress and active items
   - `pi-rpir-workflow` — current workflow phase
   - `pi-cwd` — changed working directory
+  - `pi-lsp` — language server status (active/available, clean/dirty)
+  - `pi-lint` — configured linter status (clean/dirty)
+  - `pi-processes` — active process count
+  - `pi-git` — enriched git status (branch, diff stats, file counts)
 - **Smart truncation** — gracefully handles narrow terminals while preserving context warnings
 - **Debounced git polling** — efficient `git diff` updates (debounced 500ms on file changes, immediate on turn end)
 

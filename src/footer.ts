@@ -16,23 +16,73 @@ function buildLine2(
   if (!statuses) return null;
 
   const processStatus = statuses.get("pi-processes");
-  const lspStatus = statuses.get("pi-lsp");
-  const lintStatus = statuses.get("pi-lint");
+  const lspStatusRaw = statuses.get("pi-lsp");
+  const lintStatusRaw = statuses.get("pi-lint");
 
   // Build left part (process count)
   let leftPart = processStatus ? theme.fg("muted", processStatus) : "";
 
   // Build center part (LSP/Lint)
-  const centerParts: string[] = [];
-  if (lspStatus) {
-    centerParts.push(theme.fg("muted", "LSP:") + " " + theme.fg("dim", lspStatus));
+  const lspParts: string[] = [];
+  const lintParts: string[] = [];
+
+  // ── LSP Section ──────────────────────────────────────────────
+  if (lspStatusRaw) {
+    try {
+      const lspPayload = JSON.parse(lspStatusRaw) as {
+        languages: { name: string; state: string; clean: boolean | null }[];
+      };
+      if (Array.isArray(lspPayload.languages)) {
+        for (const lang of lspPayload.languages) {
+          const icon = lang.clean === false ? "\u2717" : "\u2713";
+          const nameColor: "text" | "muted" =
+            lang.state === "active" ? "text" : "muted";
+          let iconColor: "success" | "error" | "dim";
+          if (lang.clean === false) {
+            iconColor = "error";
+          } else if (lang.clean === true) {
+            iconColor = "success";
+          } else {
+            iconColor = "dim";
+          }
+          lspParts.push(
+            theme.fg(iconColor, icon) + theme.fg(nameColor, lang.name),
+          );
+        }
+      }
+    } catch {
+      // Non-JSON fallback
+      lspParts.push(theme.fg("muted", "LSP:") + " " + theme.fg("dim", lspStatusRaw));
+    }
   }
-  if (lintStatus) {
-    centerParts.push(theme.fg("muted", "Linter:") + " " + theme.fg("dim", lintStatus));
+
+  // ── Lint Section ──────────────────────────────────────────────
+  if (lintStatusRaw) {
+    try {
+      const lintPayload = JSON.parse(lintStatusRaw) as {
+        linters: { name: string; clean: boolean }[];
+      };
+      if (Array.isArray(lintPayload.linters)) {
+        for (const linter of lintPayload.linters) {
+          const icon = linter.clean ? "\u2713" : "\u2717";
+          const iconColor: "success" | "error" = linter.clean ? "success" : "error";
+          lintParts.push(
+            theme.fg(iconColor, icon) + theme.fg("text", linter.name),
+          );
+        }
+      }
+    } catch {
+      // Non-JSON fallback
+      lintParts.push(theme.fg("muted", "Linter:") + " " + theme.fg("dim", lintStatusRaw));
+    }
   }
+
+  const groups: string[] = [];
+  if (lspParts.length > 0) groups.push(lspParts.join(" "));
+  if (lintParts.length > 0) groups.push(lintParts.join(" "));
   const centerPart =
-    centerParts.length > 0
-      ? centerParts.join(theme.fg("dim", " \u2022 "))
+    groups.length > 0
+      ? groups.join(theme.fg("dim", " \u2022 "))
       : "";
 
   if (!leftPart && !centerPart) return null;

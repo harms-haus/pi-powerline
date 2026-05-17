@@ -559,3 +559,272 @@ describe("buildLine2 truncation", () => {
     expect(line2Stripped).toMatch(/\s+$/);
   });
 });
+
+describe("buildLine2 JSON rendering", () => {
+  beforeEach(() => {
+    (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
+    (state as Record<string, unknown>).currentCtx = undefined;
+    (state as Record<string, unknown>).api = undefined;
+    (state as Record<string, unknown>).footerDataProvider = undefined;
+    (git as Record<string, unknown>).gitChanges = null;
+  });
+
+  afterEach(() => {
+    (state as Record<string, unknown>).currentCwd = undefined;
+    (state as Record<string, unknown>).currentCtx = undefined;
+    (state as Record<string, unknown>).api = undefined;
+    (state as Record<string, unknown>).footerDataProvider = undefined;
+    (git as Record<string, unknown>).gitChanges = null;
+  });
+
+  it("LSP JSON: active + clean renders success icon and text name", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lsp",
+            JSON.stringify({
+              languages: [{ name: "typescript", state: "active", clean: true }],
+            }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // success-colored checkmark
+    expect(line2).toContain("[success]\u2713");
+    // text-colored language name
+    expect(line2).toContain("[text]typescript");
+  });
+
+  it("LSP JSON: active + dirty renders error icon and text name", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lsp",
+            JSON.stringify({
+              languages: [{ name: "rust", state: "active", clean: false }],
+            }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    expect(line2).toContain("[error]\u2717");
+    expect(line2).toContain("[text]rust");
+  });
+
+  it("LSP JSON: available + null clean renders dim icon and muted name", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lsp",
+            JSON.stringify({
+              languages: [{ name: "python", state: "available", clean: null }],
+            }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    expect(line2).toContain("[dim]\u2713");
+    expect(line2).toContain("[muted]python");
+  });
+
+  it("Lint JSON: clean linter renders success icon and text name", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lint",
+            JSON.stringify({
+              linters: [{ name: "ESLint", clean: true }],
+            }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    expect(line2).toContain("[success]\u2713");
+    expect(line2).toContain("[text]ESLint");
+  });
+
+  it("Lint JSON: dirty linter renders error icon and text name", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lint",
+            JSON.stringify({
+              linters: [{ name: "Biome", clean: false }],
+            }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    expect(line2).toContain("[error]\u2717");
+    expect(line2).toContain("[text]Biome");
+  });
+
+  it("Both LSP and Lint JSON renders bullet separator between groups", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lsp",
+            JSON.stringify({
+              languages: [{ name: "typescript", state: "active", clean: true }],
+            }),
+          ],
+          [
+            "pi-lint",
+            JSON.stringify({
+              linters: [{ name: "ESLint", clean: true }],
+            }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // Bullet separator (•) wrapped in dim color between groups
+    expect(line2).toContain("[dim] \u2022");
+    // Both groups should be present
+    expect(line2).toContain("[text]typescript");
+    expect(line2).toContain("[text]ESLint");
+  });
+
+  it("Multiple languages and linters are space-separated within each group", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lsp",
+            JSON.stringify({
+              languages: [
+                { name: "typescript", state: "active", clean: true },
+                { name: "rust", state: "active", clean: false },
+              ],
+            }),
+          ],
+          [
+            "pi-lint",
+            JSON.stringify({
+              linters: [
+                { name: "ESLint", clean: true },
+                { name: "Biome", clean: false },
+              ],
+            }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // Both languages should appear
+    expect(line2).toContain("[success]\u2713[text]typescript");
+    expect(line2).toContain("[error]\u2717[text]rust");
+    // Both linters should appear
+    expect(line2).toContain("[success]\u2713[text]ESLint");
+    expect(line2).toContain("[error]\u2717[text]Biome");
+
+    // Verify space separation within LSP group (between the two language entries)
+    const lspGroup = "[success]\u2713[text]typescript [error]\u2717[text]rust";
+    expect(line2).toContain(lspGroup);
+    // Verify space separation within lint group
+    const lintGroup = "[success]\u2713[text]ESLint [error]\u2717[text]Biome";
+    expect(line2).toContain(lintGroup);
+  });
+
+  it("Empty languages array renders no LSP section", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lsp",
+            JSON.stringify({ languages: [] }),
+          ],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    // No LSP parts → no center content → buildLine2 returns null → single line
+    expect(result.length).toBe(1);
+  });
+
+  it("Mixed JSON + non-JSON: LSP as JSON parsed, lint as plain string fallback", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lsp",
+            JSON.stringify({
+              languages: [{ name: "typescript", state: "active", clean: true }],
+            }),
+          ],
+          ["pi-lint", "2 warnings"],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // LSP should be parsed as JSON
+    expect(line2).toContain("[success]\u2713");
+    expect(line2).toContain("[text]typescript");
+    // Lint should fall back to plain string rendering with "Linter:" label
+    expect(line2).toContain("[muted]Linter:");
+    expect(line2).toContain("[dim]2 warnings");
+  });
+
+  it("Malformed JSON falls back to old rendering with LSP: label", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-lsp", "not-valid-json"],
+        ]),
+    } as unknown as ReadonlyFooterDataProvider;
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // Falls back to plain string rendering with "LSP:" label
+    expect(line2).toContain("[muted]LSP:");
+    expect(line2).toContain("[dim]not-valid-json");
+  });
+});
