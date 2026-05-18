@@ -19,8 +19,9 @@ vi.mock("../state", () => ({
 }));
 
 // Dynamic import so mock is applied before evaluation
-const { colorCodeGitChanges, clearGitTimer, refreshGitDiff, debouncedRefreshGitDiff } =
-  vi.mocked(await import("../git"));
+const { colorCodeGitChanges, clearGitTimer, refreshGitDiff, debouncedRefreshGitDiff } = vi.mocked(
+  await import("../git"),
+);
 
 const mockTheme = {
   fg: (color: string, text: string) => `[${color}]${text}`,
