@@ -12,7 +12,7 @@ vi.mock("../state", () => ({
 }));
 
 // Dynamic import so the mock is applied before the module is evaluated
-const { renderAboveWidget } = await vi.mocked(await import("../above-widget"));
+const { renderAboveWidget } = vi.mocked(await import("../above-widget"));
 
 import { mockTheme } from "./test-utils.js";
 

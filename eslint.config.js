@@ -20,22 +20,13 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-function-return-type": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
-      "@typescript-eslint/consistent-type-imports": [
-        "error",
-        { prefer: "type-imports" },
-      ],
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports" }],
       "@typescript-eslint/no-non-null-assertion": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
 
       "max-depth": ["error", 5],
-      "max-lines-per-function": [
-        "error",
-        { max: 100, skipBlankLines: true, skipComments: true },
-      ],
+      "max-lines-per-function": ["error", { max: 100, skipBlankLines: true, skipComments: true }],
       complexity: ["error", 15],
 
       "@typescript-eslint/no-unsafe-argument": "error",
@@ -57,7 +48,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/**/*.test.ts", "src/**/setup.ts"],
+    files: ["src/**/*.test.ts", "src/**/setup.ts", "src/**/helpers/*.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
@@ -71,9 +62,6 @@ export default tseslint.config(
         "error",
         { checksConditionals: false, checksVoidReturn: false },
       ],
-      "@typescript-eslint/no-unnecessary-type-assertion": "off",
-      "@typescript-eslint/restrict-plus-operands": "off",
-      "@typescript-eslint/await-thenable": "off",
       "max-lines-per-function": "off",
       complexity: "off",
       "max-depth": "off",

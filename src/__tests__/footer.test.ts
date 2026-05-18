@@ -46,9 +46,9 @@ vi.mock("../helpers", () => ({
   formatTokens: (count: number) => {
     if (count < 1000) return count.toString();
     if (count < 10000) return (count / 1000).toFixed(1) + "k";
-    if (count < 1000000) return Math.round(count / 1000) + "k";
+    if (count < 1000000) return `${Math.round(count / 1000)}k`;
     if (count < 10000000) return (count / 1000000).toFixed(1) + "M";
-    return Math.round(count / 1000000) + "M";
+    return `${Math.round(count / 1000000)}M`;
   },
   alignLeftRight: (left: string, right: string, width: number) => {
     const leftW = visibleWidth(left);
@@ -108,7 +108,7 @@ describe("renderFooterLine", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
       getExtensionStatuses: () => undefined,
-    } as unknown as ReadonlyFooterDataProvider;
+    };
     (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
 
     const result = renderFooterLine(80, mockTheme);
@@ -135,7 +135,7 @@ describe("renderFooterLine", () => {
       modelRegistry: {
         getProviderDisplayName: () => "Anthropic",
       },
-    } as unknown as ExtensionContext;
+    };
 
     const result = renderFooterLine(120, mockTheme);
 
@@ -161,7 +161,7 @@ describe("renderFooterLine", () => {
       modelRegistry: {
         getProviderDisplayName: () => "Anthropic",
       },
-    } as unknown as ExtensionContext;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -187,7 +187,7 @@ describe("renderFooterLine", () => {
       modelRegistry: {
         getProviderDisplayName: () => "OpenAI",
       },
-    } as unknown as ExtensionContext;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -215,7 +215,7 @@ describe("renderFooterLine", () => {
           ["pi-lsp", "0 errors"],
           ["pi-lint", "2 warnings"],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -242,7 +242,7 @@ describe("renderFooterLine with pi-git integration", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
       getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     // Use generous width since mock theme tags count as visible chars
     const result = renderFooterLine(300, mockTheme);
@@ -266,7 +266,7 @@ describe("renderFooterLine with pi-git integration", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
       getExtensionStatuses: () => new Map<string, string>(),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
     (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
 
     const result = renderFooterLine(120, mockTheme);
@@ -282,7 +282,7 @@ describe("renderFooterLine with pi-git integration", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
       getExtensionStatuses: () => new Map<string, string>([["pi-git", "not-json"]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
     (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
 
     const result = renderFooterLine(120, mockTheme);
@@ -299,7 +299,7 @@ describe("renderFooterLine with pi-git integration", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
       getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
     (git as Record<string, unknown>).gitChanges = { insertions: 10, deletions: 5 };
 
     const result = renderFooterLine(120, mockTheme);
@@ -321,7 +321,7 @@ describe("renderFooterLine with pi-git integration", () => {
           ["pi-lsp", "0 errors"],
           ["pi-lint", "2 warnings"],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -338,7 +338,7 @@ describe("renderFooterLine with pi-git integration", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () => new Map<string, string>([["pi-processes", "3 processes"]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -357,7 +357,7 @@ describe("renderFooterLine with pi-git integration", () => {
           ["pi-lsp", "0 errors"],
           ["pi-lint", "2 warnings"],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -373,7 +373,7 @@ describe("renderFooterLine with pi-git integration", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () => new Map<string, string>(),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -393,7 +393,7 @@ describe("renderFooterLine with pi-git integration", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
       getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(120, mockTheme);
 
@@ -418,7 +418,7 @@ describe("buildLine2 truncation", () => {
           ["pi-lsp", "0 errors"],
           ["pi-lint", "2 warnings"],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const width = 120;
     const result = renderFooterLine(width, mockTheme);
@@ -439,7 +439,7 @@ describe("buildLine2 truncation", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () => new Map<string, string>([["pi-processes", longStatus]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const width = 120;
     const result = renderFooterLine(width, mockTheme);
@@ -461,7 +461,7 @@ describe("buildLine2 truncation", () => {
           ["pi-lsp", "0 errors"],
           ["pi-lint", "2 warnings"],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const width = 120;
     const result = renderFooterLine(width, mockTheme);
@@ -485,7 +485,7 @@ describe("buildLine2 truncation", () => {
           ["pi-lsp", "0 errors"],
           ["pi-lint", "2 warnings"],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const width = 120;
     const result = renderFooterLine(width, mockTheme);
@@ -524,7 +524,7 @@ describe("buildLine2 JSON rendering", () => {
             }),
           ],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -548,7 +548,7 @@ describe("buildLine2 JSON rendering", () => {
             }),
           ],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -570,7 +570,7 @@ describe("buildLine2 JSON rendering", () => {
             }),
           ],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -592,7 +592,7 @@ describe("buildLine2 JSON rendering", () => {
             }),
           ],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -614,7 +614,7 @@ describe("buildLine2 JSON rendering", () => {
             }),
           ],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -642,7 +642,7 @@ describe("buildLine2 JSON rendering", () => {
             }),
           ],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -679,7 +679,7 @@ describe("buildLine2 JSON rendering", () => {
             }),
           ],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(120, mockTheme);
 
@@ -705,7 +705,7 @@ describe("buildLine2 JSON rendering", () => {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([["pi-lsp", JSON.stringify({ languages: [] })]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -726,7 +726,7 @@ describe("buildLine2 JSON rendering", () => {
           ],
           ["pi-lint", "2 warnings"],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -744,7 +744,7 @@ describe("buildLine2 JSON rendering", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () => new Map<string, string>([["pi-lsp", "not-valid-json"]]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -766,7 +766,7 @@ describe("buildContextDisplay edge cases", () => {
         percent: null,
       }),
       model: undefined,
-    } as unknown as ExtensionContext;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -783,7 +783,7 @@ describe("buildContextDisplay edge cases", () => {
         percent: null,
       }),
       model: undefined,
-    } as unknown as ExtensionContext;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 
@@ -812,7 +812,7 @@ describe("buildModelDisplay edge cases", () => {
       modelRegistry: {
         getProviderDisplayName: () => "Anthropic",
       },
-    } as unknown as ExtensionContext;
+    };
     (state as Record<string, unknown>).api = {
       getThinkingLevel: () => "high",
     };
@@ -866,7 +866,7 @@ describe("buildLine2 center truncation", () => {
           ["pi-lsp", longLspStatus],
           ["pi-lint", longLintStatus],
         ]),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     // Use a very narrow width to force truncation of the center content
     const result = renderFooterLine(30, mockTheme);
@@ -895,7 +895,7 @@ describe("collectFooterContext with api thinking level", () => {
       modelRegistry: {
         getProviderDisplayName: () => "Anthropic",
       },
-    } as unknown as ExtensionContext;
+    };
     (state as Record<string, unknown>).api = {
       getThinkingLevel: () => "medium",
     };
@@ -924,7 +924,7 @@ describe("buildModelDisplay: provider without modelRegistry", () => {
         contextWindow: 128000,
       },
       // No modelRegistry → hits the else branch: providerName = provider
-    } as unknown as ExtensionContext;
+    };
 
     const result = renderFooterLine(120, mockTheme);
 
@@ -951,7 +951,7 @@ describe("buildLine1: left truncation when right is wide", () => {
       modelRegistry: {
         getProviderDisplayName: () => "Extremely Long Provider Display Name",
       },
-    } as unknown as ExtensionContext;
+    };
     // Also set a long cwd
     (state as Record<string, unknown>).currentCwd =
       "/home/testuser/very/deeply/nested/directory/structure/with/many/components";
@@ -978,7 +978,7 @@ describe("buildLine1: left truncation when right is wide", () => {
         provider: "provider",
         contextWindow: 128000,
       },
-    } as unknown as ExtensionContext;
+    };
     (state as Record<string, unknown>).currentCwd = "/home/testuser/some/deeply/nested/path";
 
     // With our mock theme, the minRight is like [warning]75% which has
@@ -1002,7 +1002,7 @@ describe("renderFooterLine error handling", () => {
         throw new Error("test error");
       },
       getExtensionStatuses: () => new Map(),
-    } as unknown as ReadonlyFooterDataProvider;
+    };
 
     const result = renderFooterLine(80, mockTheme);
 

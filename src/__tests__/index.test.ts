@@ -137,7 +137,7 @@ describe("extension entry point", () => {
 
       expect(mockSetApi).toHaveBeenCalledWith(pi);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       expect(mockSafeUpdateCtx).toHaveBeenCalledWith(ctx);
       expect(mockClearGitTimer).toHaveBeenCalled();
@@ -150,7 +150,7 @@ describe("extension entry point", () => {
       mockSafeUpdateCtx.mockReturnValue(false);
       extensionDefault(pi as never);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       expect(mockClearGitTimer).not.toHaveBeenCalled();
       expect(mockRefreshGitDiff).not.toHaveBeenCalled();
@@ -161,7 +161,7 @@ describe("extension entry point", () => {
       const ctx = createMockCtx(true);
       extensionDefault(pi as never);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       expect(ctx.ui!.setFooter).toHaveBeenCalled();
       expect(ctx.ui!.setWidget).toHaveBeenCalledWith("powerline-above", expect.any(Function), {
@@ -174,7 +174,7 @@ describe("extension entry point", () => {
       const ctx = createMockCtx(false);
       extensionDefault(pi as never);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       // ui is undefined, so setFooter/setWidget won't be called
       expect(ctx.ui).toBeUndefined();
@@ -187,7 +187,7 @@ describe("extension entry point", () => {
       extensionDefault(pi as never);
 
       const ctx = createMockCtx();
-      getHandler("session_tree")({} as never, ctx as never);
+      getHandler("session_tree")({}, ctx);
 
       expect(mockSafeUpdateCtx).toHaveBeenCalledWith(ctx);
       expect(mockClearGitTimer).toHaveBeenCalled();
@@ -199,7 +199,7 @@ describe("extension entry point", () => {
       mockSafeUpdateCtx.mockReturnValue(false);
       extensionDefault(pi as never);
 
-      getHandler("session_tree")({} as never, {} as never);
+      getHandler("session_tree")({}, {});
 
       expect(mockClearGitTimer).not.toHaveBeenCalled();
     });
@@ -223,7 +223,7 @@ describe("extension entry point", () => {
       extensionDefault(pi as never);
 
       const ctx = createMockCtx();
-      getHandler("turn_end")({} as never, ctx as never);
+      getHandler("turn_end")({}, ctx);
 
       expect(mockSafeUpdateCtx).toHaveBeenCalledWith(ctx);
       expect(mockDebouncedRefreshGitDiff).toHaveBeenCalled();
@@ -234,7 +234,7 @@ describe("extension entry point", () => {
       mockSafeUpdateCtx.mockReturnValue(false);
       extensionDefault(pi as never);
 
-      getHandler("turn_end")({} as never, {} as never);
+      getHandler("turn_end")({}, {});
 
       expect(mockDebouncedRefreshGitDiff).not.toHaveBeenCalled();
     });
@@ -246,7 +246,7 @@ describe("extension entry point", () => {
       extensionDefault(pi as never);
 
       const ctx = createMockCtx();
-      getHandler("model_select")({} as never, ctx as never);
+      getHandler("model_select")({}, ctx);
 
       expect(mockSafeUpdateCtx).toHaveBeenCalledWith(ctx);
       expect(mockRequestRefresh).toHaveBeenCalled();
@@ -257,7 +257,7 @@ describe("extension entry point", () => {
       mockSafeUpdateCtx.mockReturnValue(false);
       extensionDefault(pi as never);
 
-      getHandler("model_select")({} as never, {} as never);
+      getHandler("model_select")({}, {});
 
       expect(mockRequestRefresh).not.toHaveBeenCalled();
     });
@@ -269,7 +269,7 @@ describe("extension entry point", () => {
       extensionDefault(pi as never);
 
       const ctx = createMockCtx();
-      getHandler("thinking_level_select")({} as never, ctx as never);
+      getHandler("thinking_level_select")({}, ctx);
 
       expect(mockSafeUpdateCtx).toHaveBeenCalledWith(ctx);
       expect(mockRequestRefresh).toHaveBeenCalled();
@@ -280,7 +280,7 @@ describe("extension entry point", () => {
       mockSafeUpdateCtx.mockReturnValue(false);
       extensionDefault(pi as never);
 
-      getHandler("thinking_level_select")({} as never, {} as never);
+      getHandler("thinking_level_select")({}, {});
 
       expect(mockRequestRefresh).not.toHaveBeenCalled();
     });
@@ -293,7 +293,7 @@ describe("extension entry point", () => {
 
       const ctx = createMockCtx();
       const event = { toolName: "write" };
-      getHandler("tool_result")(event as never, ctx as never);
+      getHandler("tool_result")(event, ctx);
 
       expect(mockSafeUpdateCtx).toHaveBeenCalledWith(ctx);
       expect(mockDebouncedRefreshGitDiff).toHaveBeenCalled();
@@ -305,7 +305,7 @@ describe("extension entry point", () => {
 
       const ctx = createMockCtx();
       const event = { toolName: "edit" };
-      getHandler("tool_result")(event as never, ctx as never);
+      getHandler("tool_result")(event, ctx);
 
       expect(mockDebouncedRefreshGitDiff).toHaveBeenCalled();
     });
@@ -316,7 +316,7 @@ describe("extension entry point", () => {
 
       const ctx = createMockCtx();
       const event = { toolName: "bash" };
-      getHandler("tool_result")(event as never, ctx as never);
+      getHandler("tool_result")(event, ctx);
 
       expect(mockDebouncedRefreshGitDiff).toHaveBeenCalled();
     });
@@ -327,7 +327,7 @@ describe("extension entry point", () => {
 
       const ctx = createMockCtx();
       const event = { toolName: "read" };
-      getHandler("tool_result")(event as never, ctx as never);
+      getHandler("tool_result")(event, ctx);
 
       expect(mockDebouncedRefreshGitDiff).not.toHaveBeenCalled();
     });
@@ -338,7 +338,7 @@ describe("extension entry point", () => {
       extensionDefault(pi as never);
 
       const event = { toolName: "write" };
-      getHandler("tool_result")(event as never, {} as never);
+      getHandler("tool_result")(event, {});
 
       expect(mockDebouncedRefreshGitDiff).not.toHaveBeenCalled();
     });
@@ -350,7 +350,7 @@ describe("extension entry point", () => {
       extensionDefault(pi as never);
 
       const ctx = createMockCtx();
-      getHandler("message_end")({} as never, ctx as never);
+      getHandler("message_end")({}, ctx);
 
       expect(mockSafeUpdateCtx).toHaveBeenCalledWith(ctx);
       expect(mockRequestRefresh).toHaveBeenCalled();
@@ -361,7 +361,7 @@ describe("extension entry point", () => {
       mockSafeUpdateCtx.mockReturnValue(false);
       extensionDefault(pi as never);
 
-      getHandler("message_end")({} as never, {} as never);
+      getHandler("message_end")({}, {});
 
       expect(mockRequestRefresh).not.toHaveBeenCalled();
     });
@@ -373,7 +373,7 @@ describe("extension entry point", () => {
       const ctx = createMockCtx(true);
       extensionDefault(pi as never);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       const footerFactory = ctx.ui!.setFooter.mock.calls[0][0] as (
         tui: unknown,
@@ -401,7 +401,7 @@ describe("extension entry point", () => {
       const ctx = createMockCtx(true);
       extensionDefault(pi as never);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       const footerFactory = ctx.ui!.setFooter.mock.calls[0][0] as (
         tui: unknown,
@@ -425,7 +425,7 @@ describe("extension entry point", () => {
       const ctx = createMockCtx(true);
       extensionDefault(pi as never);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       const footerFactory = ctx.ui!.setFooter.mock.calls[0][0];
       const mockTui = { requestRender: vi.fn() };
@@ -453,7 +453,7 @@ describe("extension entry point", () => {
       const ctx = createMockCtx(true);
       extensionDefault(pi as never);
 
-      getHandler("session_start")({} as never, ctx as never);
+      getHandler("session_start")({}, ctx);
 
       const widgetFactory = ctx.ui!.setWidget.mock.calls[0][1] as (
         tui: unknown,
@@ -461,7 +461,7 @@ describe("extension entry point", () => {
       ) => { dispose: () => void; invalidate: () => void; render: (w: number) => string[] };
       const mockTheme = { fg: vi.fn((_c: string, t: string) => t) };
 
-      const result = widgetFactory({} as never, mockTheme);
+      const result = widgetFactory({}, mockTheme);
       const lines = result.render(80);
 
       expect(renderAboveWidget).toHaveBeenCalledWith(80, mockTheme);

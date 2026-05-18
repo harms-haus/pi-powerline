@@ -7,7 +7,7 @@
   ],
   "files": [
     "src/**/*.ts",
-    "!src/__tests__/",
+    "!src/__tests__/**",
     "README.md",
     "LICENSE"
   ],
@@ -25,7 +25,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint:fix": "eslint --fix src/"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
@@ -46,9 +47,10 @@
   "publishConfig": {
     "access": "public"
   },
+  "author": "harms-haus",
   "repository": {
     "type": "git",
-    "url": "https://github.com/harms-haus/pi-powerline"
+    "url": "git+https://github.com/harms-haus/pi-powerline.git"
   },
   "engines": {
     "node": ">=20.0.0"
