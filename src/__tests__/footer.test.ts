@@ -207,24 +207,23 @@ describe("renderFooterLine", () => {
     expect(visibleWidth).toBeLessThanOrEqual(10);
   });
 
-  it("returns two lines when LSP/lint statuses are present", () => {
+  it("returns two lines when pi-lens status is present", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
-          ["pi-lsp", "0 errors"],
-          ["pi-lint", "2 warnings"],
+          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
         ]),
     };
 
-    const result = renderFooterLine(80, mockTheme);
+    const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
-    expect(line2Stripped).toContain("LSP");
-    expect(line2Stripped).toContain("Linter");
-    expect(line2Stripped).toContain("0 errors");
-    expect(line2Stripped).toContain("2 warnings");
+    const line2 = result[1];
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    expect(line2).toContain("[error]\u2717[text]linters");
+    expect(line2).toContain("[success]\u2713[text]lsp");
+    expect(line2).toContain("[dim]\u2014[text]tsc");
   });
 });
 
@@ -312,26 +311,25 @@ describe("renderFooterLine with pi-git integration", () => {
     expect(stripped).toContain("-5");
   });
 
-  it("shows pi-processes status left-aligned on line 2 with center LSP/Lint", () => {
+  it("shows pi-processes status left-aligned on line 2 with center lens status", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", "3 processes"],
-          ["pi-lsp", "0 errors"],
-          ["pi-lint", "2 warnings"],
+          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
         ]),
     };
 
-    const result = renderFooterLine(80, mockTheme);
+    const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
     const line2Stripped = stripTags(result[1]);
     // Process count should be left-aligned (at position 0)
     expect(line2Stripped.indexOf("3 processes")).toBe(0);
-    // LSP/Lint should still appear somewhere in the line
-    expect(line2Stripped).toContain("LSP");
-    expect(line2Stripped).toContain("Linter");
+    // Lens checks should appear somewhere in the line
+    expect(result[1]).toContain("[text]prettier");
+    expect(result[1]).toContain("[text]linters");
   });
 
   it("shows only pi-processes on line 2 when no LSP/Lint", () => {
@@ -349,24 +347,24 @@ describe("renderFooterLine with pi-git integration", () => {
     expect(line2Stripped.indexOf("3 processes")).toBe(0);
   });
 
-  it("centers LSP/Lint when no pi-processes status", () => {
+  it("centers lens status when no pi-processes status", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
-          ["pi-lsp", "0 errors"],
-          ["pi-lint", "2 warnings"],
+          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
         ]),
     };
 
-    const result = renderFooterLine(80, mockTheme);
+    const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
-    expect(line2Stripped).toContain("LSP");
-    expect(line2Stripped).toContain("Linter");
+    const line2 = result[1];
+    expect(line2).toContain("[text]prettier");
+    expect(line2).toContain("[text]linters");
     // Centered: should not start at position 0
-    expect(line2Stripped.indexOf("LSP")).toBeGreaterThan(0);
+    const line2Stripped = stripTags(line2);
+    expect(line2Stripped.indexOf("\u2713")).toBeGreaterThan(0);
   });
 
   it("returns single line when no statuses at all", () => {
@@ -415,8 +413,7 @@ describe("buildLine2 truncation", () => {
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", longStatus],
-          ["pi-lsp", "0 errors"],
-          ["pi-lint", "2 warnings"],
+          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
         ]),
     };
 
@@ -458,8 +455,7 @@ describe("buildLine2 truncation", () => {
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", "3 procs"],
-          ["pi-lsp", "0 errors"],
-          ["pi-lint", "2 warnings"],
+          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
         ]),
     };
 
@@ -482,28 +478,28 @@ describe("buildLine2 truncation", () => {
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", longStatus],
-          ["pi-lsp", "0 errors"],
-          ["pi-lint", "2 warnings"],
+          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
         ]),
     };
 
-    const width = 120;
+    const width = 200;
     const result = renderFooterLine(width, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2 = result[1];
+    const line2Stripped = stripTags(line2);
 
     // Both left and center content should be present
-    expect(line2Stripped).toContain("LSP");
-    expect(line2Stripped).toContain("Linter");
+    expect(line2).toContain("[text]prettier");
+    expect(line2).toContain("[text]linters");
 
     // Center should appear after the left part (not at position 0)
-    const lspIndex = line2Stripped.indexOf("LSP");
-    expect(lspIndex).toBeGreaterThan(0);
+    const checkIndex = line2Stripped.indexOf("\u2713");
+    expect(checkIndex).toBeGreaterThan(0);
 
     // There should be whitespace between left part and center
-    const beforeLsp = line2Stripped.substring(0, lspIndex);
-    expect(beforeLsp).toMatch(/\s+$/);
+    const beforeCheck = line2Stripped.substring(0, checkIndex);
+    expect(beforeCheck).toMatch(/\s+$/);
 
     // There should be trailing whitespace after center content
     // (proving center is not jammed to the right edge)
@@ -512,171 +508,14 @@ describe("buildLine2 truncation", () => {
 });
 
 describe("buildLine2 JSON rendering", () => {
-  it("LSP JSON: active + clean renders success icon and text name", () => {
+  it("clean check renders success icon and text label", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
           [
-            "pi-lsp",
-            JSON.stringify({
-              languages: [{ name: "typescript", state: "active", clean: true }],
-            }),
-          ],
-        ]),
-    };
-
-    const result = renderFooterLine(80, mockTheme);
-
-    expect(result.length).toBe(2);
-    const line2 = result[1];
-    // success-colored checkmark
-    expect(line2).toContain("[success]\u2713");
-    // text-colored language name
-    expect(line2).toContain("[text]typescript");
-  });
-
-  it("LSP JSON: active + dirty renders error icon and text name", () => {
-    (state as Record<string, unknown>).footerDataProvider = {
-      getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          [
-            "pi-lsp",
-            JSON.stringify({
-              languages: [{ name: "rust", state: "active", clean: false }],
-            }),
-          ],
-        ]),
-    };
-
-    const result = renderFooterLine(80, mockTheme);
-
-    expect(result.length).toBe(2);
-    const line2 = result[1];
-    expect(line2).toContain("[error]\u2717");
-    expect(line2).toContain("[text]rust");
-  });
-
-  it("LSP JSON: available + null clean renders dim icon and muted name", () => {
-    (state as Record<string, unknown>).footerDataProvider = {
-      getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          [
-            "pi-lsp",
-            JSON.stringify({
-              languages: [{ name: "python", state: "available", clean: null }],
-            }),
-          ],
-        ]),
-    };
-
-    const result = renderFooterLine(80, mockTheme);
-
-    expect(result.length).toBe(2);
-    const line2 = result[1];
-    expect(line2).toContain("[dim]\u2713");
-    expect(line2).toContain("[muted]python");
-  });
-
-  it("Lint JSON: clean linter renders success icon and text name", () => {
-    (state as Record<string, unknown>).footerDataProvider = {
-      getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          [
-            "pi-lint",
-            JSON.stringify({
-              linters: [{ name: "ESLint", clean: true }],
-            }),
-          ],
-        ]),
-    };
-
-    const result = renderFooterLine(80, mockTheme);
-
-    expect(result.length).toBe(2);
-    const line2 = result[1];
-    expect(line2).toContain("[success]\u2713");
-    expect(line2).toContain("[text]ESLint");
-  });
-
-  it("Lint JSON: dirty linter renders error icon and text name", () => {
-    (state as Record<string, unknown>).footerDataProvider = {
-      getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          [
-            "pi-lint",
-            JSON.stringify({
-              linters: [{ name: "Biome", clean: false }],
-            }),
-          ],
-        ]),
-    };
-
-    const result = renderFooterLine(80, mockTheme);
-
-    expect(result.length).toBe(2);
-    const line2 = result[1];
-    expect(line2).toContain("[error]\u2717");
-    expect(line2).toContain("[text]Biome");
-  });
-
-  it("Both LSP and Lint JSON renders bullet separator between groups", () => {
-    (state as Record<string, unknown>).footerDataProvider = {
-      getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          [
-            "pi-lsp",
-            JSON.stringify({
-              languages: [{ name: "typescript", state: "active", clean: true }],
-            }),
-          ],
-          [
-            "pi-lint",
-            JSON.stringify({
-              linters: [{ name: "ESLint", clean: true }],
-            }),
-          ],
-        ]),
-    };
-
-    const result = renderFooterLine(80, mockTheme);
-
-    expect(result.length).toBe(2);
-    const line2 = result[1];
-    // Bullet separator (•) wrapped in dim color between groups
-    expect(line2).toContain("[dim] \u2022");
-    // Both groups should be present
-    expect(line2).toContain("[text]typescript");
-    expect(line2).toContain("[text]ESLint");
-  });
-
-  it("Multiple languages and linters are space-separated within each group", () => {
-    (state as Record<string, unknown>).footerDataProvider = {
-      getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          [
-            "pi-lsp",
-            JSON.stringify({
-              languages: [
-                { name: "typescript", state: "active", clean: true },
-                { name: "rust", state: "active", clean: false },
-              ],
-            }),
-          ],
-          [
-            "pi-lint",
-            JSON.stringify({
-              linters: [
-                { name: "ESLint", clean: true },
-                { name: "Biome", clean: false },
-              ],
-            }),
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "clean", lsp: "clean", tsc: "clean" }),
           ],
         ]),
     };
@@ -685,46 +524,45 @@ describe("buildLine2 JSON rendering", () => {
 
     expect(result.length).toBe(2);
     const line2 = result[1];
-    // Both languages should appear
-    expect(line2).toContain("[success]\u2713[text]typescript");
-    expect(line2).toContain("[error]\u2717[text]rust");
-    // Both linters should appear
-    expect(line2).toContain("[success]\u2713[text]ESLint");
-    expect(line2).toContain("[error]\u2717[text]Biome");
-
-    // Verify space separation within LSP group (between the two language entries)
-    const lspGroup = "[success]\u2713[text]typescript [error]\u2717[text]rust";
-    expect(line2).toContain(lspGroup);
-    // Verify space separation within lint group
-    const lintGroup = "[success]\u2713[text]ESLint [error]\u2717[text]Biome";
-    expect(line2).toContain(lintGroup);
+    // success-colored checkmark for each check
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    expect(line2).toContain("[success]\u2713[text]linters");
+    expect(line2).toContain("[success]\u2713[text]lsp");
+    expect(line2).toContain("[success]\u2713[text]tsc");
   });
 
-  it("Empty languages array renders no LSP section", () => {
-    (state as Record<string, unknown>).footerDataProvider = {
-      getGitBranch: () => null,
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-lsp", JSON.stringify({ languages: [] })]]),
-    };
-
-    const result = renderFooterLine(80, mockTheme);
-
-    // No LSP parts → no center content → buildLine2 returns null → single line
-    expect(result.length).toBe(1);
-  });
-
-  it("Mixed JSON + non-JSON: LSP as JSON parsed, lint as plain string fallback", () => {
+  it("issues check renders error icon and text label", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
           [
-            "pi-lsp",
-            JSON.stringify({
-              languages: [{ name: "typescript", state: "active", clean: true }],
-            }),
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "clean" }),
           ],
-          ["pi-lint", "2 warnings"],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    expect(line2).toContain("[error]\u2717[text]linters");
+    // Clean checks still render with success icon
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    expect(line2).toContain("[success]\u2713[text]lsp");
+    expect(line2).toContain("[success]\u2713[text]tsc");
+  });
+
+  it("pending check renders dim circle icon and text label", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "pending", linters: "clean", lsp: "clean", tsc: "clean" }),
+          ],
         ]),
     };
 
@@ -732,26 +570,163 @@ describe("buildLine2 JSON rendering", () => {
 
     expect(result.length).toBe(2);
     const line2 = result[1];
-    // LSP should be parsed as JSON
-    expect(line2).toContain("[success]\u2713");
-    expect(line2).toContain("[text]typescript");
-    // Lint should fall back to plain string rendering with "Linter:" label
-    expect(line2).toContain("[muted]Linter:");
-    expect(line2).toContain("[dim]2 warnings");
+    expect(line2).toContain("[dim]\u25CB[text]prettier");
+    // Other checks still render normally
+    expect(line2).toContain("[success]\u2713[text]linters");
   });
 
-  it("Malformed JSON falls back to old rendering with LSP: label", () => {
+  it("skipped check renders dim dash icon and text label", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
-      getExtensionStatuses: () => new Map<string, string>([["pi-lsp", "not-valid-json"]]),
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "clean", lsp: "clean", tsc: "skipped" }),
+          ],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    expect(line2).toContain("[dim]\u2014[text]tsc");
+    // Other checks still render with success icon
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    expect(line2).toContain("[success]\u2713[text]linters");
+    expect(line2).toContain("[success]\u2713[text]lsp");
+  });
+
+  it("error check renders warning icon and text label", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "error", linters: "clean", lsp: "clean", tsc: "clean" }),
+          ],
+        ]),
     };
 
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(2);
     const line2 = result[1];
-    // Falls back to plain string rendering with "LSP:" label
-    expect(line2).toContain("[muted]LSP:");
+    expect(line2).toContain("[error]\u26A0[text]prettier");
+    // Other checks still render normally
+    expect(line2).toContain("[success]\u2713[text]linters");
+  });
+
+  it("all four checks are space-separated", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "clean", lsp: "clean", tsc: "clean" }),
+          ],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // All four checks should be present, space-separated
+    expect(line2).toContain("[success]\u2713[text]prettier [success]\u2713[text]linters");
+    expect(line2).toContain("[success]\u2713[text]lsp [success]\u2713[text]tsc");
+  });
+
+  it("mixed statuses render correct icon for each check", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "running", tsc: "skipped" }),
+          ],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // Each check gets its own icon
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    expect(line2).toContain("[error]\u2717[text]linters");
+    expect(line2).toContain("[warning]\u27F3[text]lsp");
+    expect(line2).toContain("[dim]\u2014[text]tsc");
+
+    // Verify space separation between all four checks
+    const expected =
+      "[success]\u2713[text]prettier " +
+      "[error]\u2717[text]linters " +
+      "[warning]\u27F3[text]lsp " +
+      "[dim]\u2014[text]tsc";
+    expect(line2).toContain(expected);
+  });
+
+  it("pi-lens key always renders all four checks even when all skipped", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-lens", JSON.stringify({ prettier: "skipped", linters: "skipped", lsp: "skipped", tsc: "skipped" })],
+        ]),
+    };
+
+    const result = renderFooterLine(80, mockTheme);
+
+    // pi-lens key exists → always renders line 2 with all 4 checks
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    expect(line2).toContain("[dim]\u2014[text]prettier");
+    expect(line2).toContain("[dim]\u2014[text]linters");
+    expect(line2).toContain("[dim]\u2014[text]lsp");
+    expect(line2).toContain("[dim]\u2014[text]tsc");
+  });
+
+  it("running check renders warning rotation icon and text label", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "running", linters: "clean", lsp: "clean", tsc: "clean" }),
+          ],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // Running check gets warning-colored rotation icon
+    expect(line2).toContain("[warning]\u27F3[text]prettier");
+    // Other checks still render normally
+    expect(line2).toContain("[success]\u2713[text]linters");
+    expect(line2).toContain("[success]\u2713[text]lsp");
+    expect(line2).toContain("[success]\u2713[text]tsc");
+  });
+
+  it("Malformed JSON falls back to Lens: label", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () => new Map<string, string>([["pi-lens", "not-valid-json"]]),
+    };
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    // Falls back to plain string rendering with "Lens:" label
+    expect(line2).toContain("[muted]Lens:");
     expect(line2).toContain("[dim]not-valid-json");
   });
 });
@@ -842,29 +817,14 @@ describe("buildLine1 truncation edge cases", () => {
 
 describe("buildLine2 center truncation", () => {
   it("truncates center part when it exceeds width", () => {
-    const longLspStatus = JSON.stringify({
-      languages: [
-        { name: "typescript", state: "active", clean: true },
-        { name: "javascript", state: "active", clean: true },
-        { name: "python", state: "active", clean: true },
-        { name: "rust", state: "active", clean: true },
-        { name: "go", state: "active", clean: true },
-      ],
-    });
-    const longLintStatus = JSON.stringify({
-      linters: [
-        { name: "ESLint", clean: true },
-        { name: "Biome", clean: true },
-        { name: "Prettier", clean: true },
-        { name: "Ruff", clean: true },
-      ],
-    });
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
-          ["pi-lsp", longLspStatus],
-          ["pi-lint", longLintStatus],
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" }),
+          ],
         ]),
     };
 

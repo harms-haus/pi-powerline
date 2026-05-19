@@ -5,6 +5,15 @@ import { gitChanges, colorCodeGitChanges } from "./git";
 import type { GitDiffStat } from "./git";
 import { alignLeftRight, formatTokens, shortenPath } from "./helpers";
 
+type CheckStatus = "pending" | "running" | "clean" | "issues" | "error" | "skipped";
+
+interface LensStatusPayload {
+  prettier: CheckStatus;
+  linters: CheckStatus;
+  lsp: CheckStatus;
+  tsc: CheckStatus;
+}
+
 const CONTEXT_WARNING_THRESHOLD = 70;
 const CONTEXT_CRITICAL_THRESHOLD = 90;
 
@@ -171,50 +180,35 @@ function buildLine1(
 
 // ─── Line 2 Builders ─────────────────────────────────────────────
 
-function parseLspStatus(raw: string, theme: Theme): string[] {
-  const parts: string[] = [];
-  try {
-    const payload = JSON.parse(raw) as {
-      languages: { name: string; state: string; clean: boolean | null }[];
-    };
-    if (Array.isArray(payload.languages)) {
-      for (const lang of payload.languages) {
-        const icon = lang.clean === false ? "\u2717" : "\u2713";
-        const nameColor: "text" | "muted" = lang.state === "active" ? "text" : "muted";
-        let iconColor: "success" | "error" | "dim";
-        if (lang.clean === false) {
-          iconColor = "error";
-        } else if (lang.clean === true) {
-          iconColor = "success";
-        } else {
-          iconColor = "dim";
-        }
-        parts.push(theme.fg(iconColor, icon) + theme.fg(nameColor, lang.name));
-      }
-    }
-  } catch (error: unknown) {
-    console.error("[pi-powerline] LSP parse error:", error);
-    parts.push(theme.fg("muted", "LSP:") + " " + theme.fg("dim", raw));
+function checkStatusIcon(status: CheckStatus): { icon: string; color: "success" | "error" | "warning" | "dim" } {
+  switch (status) {
+    case "clean": return { icon: "\u2713", color: "success" };
+    case "issues": return { icon: "\u2717", color: "error" };
+    case "error": return { icon: "\u26A0", color: "error" };
+    case "running": return { icon: "\u27F3", color: "warning" };
+    case "pending": return { icon: "\u25CB", color: "dim" };
+    case "skipped": return { icon: "\u2014", color: "dim" };
+    default:        return { icon: "?",      color: "dim" };
   }
-  return parts;
 }
 
-function parseLintStatus(raw: string, theme: Theme): string[] {
+function parseLensStatus(raw: string, theme: Theme): string[] {
   const parts: string[] = [];
   try {
-    const payload = JSON.parse(raw) as {
-      linters: { name: string; clean: boolean }[];
-    };
-    if (Array.isArray(payload.linters)) {
-      for (const linter of payload.linters) {
-        const icon = linter.clean ? "\u2713" : "\u2717";
-        const iconColor: "success" | "error" = linter.clean ? "success" : "error";
-        parts.push(theme.fg(iconColor, icon) + theme.fg("text", linter.name));
-      }
+    const payload = JSON.parse(raw) as LensStatusPayload;
+    const checks: [string, CheckStatus][] = [
+      ["prettier", payload.prettier],
+      ["linters", payload.linters],
+      ["lsp", payload.lsp],
+      ["tsc", payload.tsc],
+    ];
+    for (const [label, status] of checks) {
+      const { icon, color } = checkStatusIcon(status);
+      parts.push(theme.fg(color, icon) + theme.fg("text", label));
     }
   } catch (error: unknown) {
-    console.error("[pi-powerline] Lint parse error:", error);
-    parts.push(theme.fg("muted", "Linter:") + " " + theme.fg("dim", raw));
+    console.error("[pi-powerline] Lens parse error:", error);
+    parts.push(theme.fg("muted", "Lens:") + " " + theme.fg("dim", raw));
   }
   return parts;
 }
@@ -237,17 +231,12 @@ function buildLine2(
   if (!statuses) return null;
 
   const processStatus = statuses.get("pi-processes");
-  const lspStatusRaw = statuses.get("pi-lsp");
-  const lintStatusRaw = statuses.get("pi-lint");
+  const lensStatusRaw = statuses.get("pi-lens");
 
   const leftPart = processStatus ? theme.fg("muted", processStatus) : "";
-  const lspParts = lspStatusRaw ? parseLspStatus(lspStatusRaw, theme) : [];
-  const lintParts = lintStatusRaw ? parseLintStatus(lintStatusRaw, theme) : [];
+  const lensParts = lensStatusRaw ? parseLensStatus(lensStatusRaw, theme) : [];
 
-  const groups: string[] = [];
-  if (lspParts.length > 0) groups.push(lspParts.join(" "));
-  if (lintParts.length > 0) groups.push(lintParts.join(" "));
-  const centerPart = groups.length > 0 ? groups.join(theme.fg("dim", " \u2022 ")) : "";
+  const centerPart = lensParts.length > 0 ? lensParts.join(" ") : "";
 
   if (!leftPart && !centerPart) return null;
 
