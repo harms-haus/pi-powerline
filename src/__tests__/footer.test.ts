@@ -212,7 +212,10 @@ describe("renderFooterLine", () => {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
-          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" }),
+          ],
         ]),
     };
 
@@ -317,7 +320,10 @@ describe("renderFooterLine with pi-git integration", () => {
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", "3 processes"],
-          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" }),
+          ],
         ]),
     };
 
@@ -352,7 +358,10 @@ describe("renderFooterLine with pi-git integration", () => {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
-          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" }),
+          ],
         ]),
     };
 
@@ -413,7 +422,10 @@ describe("buildLine2 truncation", () => {
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", longStatus],
-          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" }),
+          ],
         ]),
     };
 
@@ -455,7 +467,10 @@ describe("buildLine2 truncation", () => {
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", "3 procs"],
-          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" }),
+          ],
         ]),
     };
 
@@ -478,7 +493,10 @@ describe("buildLine2 truncation", () => {
       getExtensionStatuses: () =>
         new Map<string, string>([
           ["pi-processes", longStatus],
-          ["pi-lens", JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" })],
+          [
+            "pi-lens",
+            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "clean", tsc: "skipped" }),
+          ],
         ]),
     };
 
@@ -647,7 +665,12 @@ describe("buildLine2 JSON rendering", () => {
         new Map<string, string>([
           [
             "pi-lens",
-            JSON.stringify({ prettier: "clean", linters: "issues", lsp: "running", tsc: "skipped" }),
+            JSON.stringify({
+              prettier: "clean",
+              linters: "issues",
+              lsp: "running",
+              tsc: "skipped",
+            }),
           ],
         ]),
     };
@@ -676,7 +699,15 @@ describe("buildLine2 JSON rendering", () => {
       getGitBranch: () => null,
       getExtensionStatuses: () =>
         new Map<string, string>([
-          ["pi-lens", JSON.stringify({ prettier: "skipped", linters: "skipped", lsp: "skipped", tsc: "skipped" })],
+          [
+            "pi-lens",
+            JSON.stringify({
+              prettier: "skipped",
+              linters: "skipped",
+              lsp: "skipped",
+              tsc: "skipped",
+            }),
+          ],
         ]),
     };
 

@@ -180,15 +180,25 @@ function buildLine1(
 
 // ─── Line 2 Builders ─────────────────────────────────────────────
 
-function checkStatusIcon(status: CheckStatus): { icon: string; color: "success" | "error" | "warning" | "dim" } {
+function checkStatusIcon(status: CheckStatus): {
+  icon: string;
+  color: "success" | "error" | "warning" | "dim";
+} {
   switch (status) {
-    case "clean": return { icon: "\u2713", color: "success" };
-    case "issues": return { icon: "\u2717", color: "error" };
-    case "error": return { icon: "\u26A0", color: "error" };
-    case "running": return { icon: "\u27F3", color: "warning" };
-    case "pending": return { icon: "\u25CB", color: "dim" };
-    case "skipped": return { icon: "\u2014", color: "dim" };
-    default:        return { icon: "?",      color: "dim" };
+    case "clean":
+      return { icon: "\u2713", color: "success" };
+    case "issues":
+      return { icon: "\u2717", color: "error" };
+    case "error":
+      return { icon: "\u26A0", color: "error" };
+    case "running":
+      return { icon: "\u27F3", color: "warning" };
+    case "pending":
+      return { icon: "\u25CB", color: "dim" };
+    case "skipped":
+      return { icon: "\u2014", color: "dim" };
+    default:
+      return { icon: "?", color: "dim" };
   }
 }
 
