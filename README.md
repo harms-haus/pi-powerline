@@ -16,8 +16,8 @@ Then restart pi or run `/reload`.
 
 | Left | Right |
 |------|-------|
-| Todo count (`📋 6/10`) | RPIR workflow phase (`🔬 Implementing [2/5]`) |
-| Active todo items (one per line) | |
+| Todo/task count (`📋 6/10`) | RPIR workflow phase (`🔬 Implementing [2/5]`) |
+| Active todo/task items (one per line) | |
 
 ### Below the Composer (Footer)
 
@@ -86,6 +86,7 @@ Both use structured JSON payloads. If the payload is not valid JSON, the raw str
 - **Model info** — shows current provider, model, and thinking level
 - **Extension consolidation** — reads statuses from other extensions via `ctx.ui.setStatus()`:
   - `pi-til-done` — todo progress and active items
+  - `pi-tasks` — phased task progress and active tasks (shares the same slot as `pi-til-done`; latest update wins)
   - `pi-rpir-workflow` — current workflow phase
   - `pi-cwd` — changed working directory
   - `pi-lsp` — language server status (active/available, clean/dirty)
@@ -102,5 +103,6 @@ Works alongside any extension that uses `ctx.ui.setStatus()`. Extensions that ca
 ## Related Extensions
 
 - [pi-til-done](https://github.com/harms-haus/pi-til-done) — Todo list with auto-continue
+- [pi-tasks](https://github.com/harms-haus/pi-tasks) — Phased task workflow with dependency tracking
 - [pi-rpir-workflow](https://github.com/harms-haus/pi-rpir-workflow) — 4-phase development workflow
 - [pi-cwd](https://github.com/harms-haus/pi-cwd) — Working directory management
