@@ -44,7 +44,7 @@ When using a Z.ai model, a thin progress bar appears on the right side of Line 2
 ```
 
 - Uses box-drawing characters (`━╸─`) for a thin, terminal-native look
-- Color-coded: green (<50%), yellow (50–80%), red (>80%)
+- Color-coded percentage: muted (≤70%), yellow (>70%), red (>90%); bar and timer always muted
 - Shows percentage and time until quota reset
 - Only visible when `pi-zai-usage` is installed and a ZAI model is active
 

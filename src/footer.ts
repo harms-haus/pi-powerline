@@ -244,17 +244,16 @@ export function buildZaiUsageBar(
     bar =
       "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(BAR_WIDTH - filled);
   }
-  let display = bar + " " + formatPercentage(percentage);
+  const percentColor =
+    percentage > 90 ? "error" : percentage > 70 ? "warning" : "muted";
+  let result =
+    theme.fg("muted", bar) +
+    " " +
+    theme.fg(percentColor, formatPercentage(percentage));
   if (resetTimeMs !== undefined && resetTimeMs > 0) {
-    display += " " + formatResetTime(resetTimeMs);
+    result += " " + theme.fg("muted", formatResetTime(resetTimeMs));
   }
-  if (percentage < 50) {
-    return theme.fg("success", display);
-  }
-  if (percentage < 80) {
-    return theme.fg("warning", display);
-  }
-  return theme.fg("error", display);
+  return result;
 }
 
 // ─── Line 2 Builders ─────────────────────────────────────────────

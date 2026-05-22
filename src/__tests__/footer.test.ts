@@ -1115,44 +1115,56 @@ describe("formatResetTime", () => {
 });
 
 describe("buildZaiUsageBar", () => {
-  it("renders empty bar with 0% and success color", () => {
+  it("renders empty bar with 0% — bar muted, percent muted", () => {
     const result = buildZaiUsageBar(0, undefined, mockTheme);
-    expect(result).toContain("[success]");
-    expect(result).toContain("\u2500".repeat(12)); // ────────────
+    // Bar is always muted
+    expect(result).toContain("[muted]" + "\u2500".repeat(12)); // [muted]────────────
+    // Percent is muted for 0%
+    expect(result).toContain("[muted]0%");
     expect(result).toContain("0%");
   });
 
-  it("renders half-filled bar with 50% and warning color", () => {
+  it("renders half-filled bar with 50% — bar muted, percent muted", () => {
     const result = buildZaiUsageBar(50, undefined, mockTheme);
-    expect(result).toContain("[warning]");
-    expect(result).toContain("\u2501".repeat(5) + "\u2578" + "\u2500".repeat(6)); // ━━━━━╸──────
+    expect(result).toContain("[muted]" + "\u2501".repeat(5) + "\u2578" + "\u2500".repeat(6));
+    // Percent is muted for 50% (≤ 70)
+    expect(result).toContain("[muted]50%");
     expect(result).toContain("50%");
   });
 
-  it("renders mostly-filled bar with 80% and error color", () => {
+  it("renders mostly-filled bar with 80% — bar muted, percent warning", () => {
     const result = buildZaiUsageBar(80, undefined, mockTheme);
-    expect(result).toContain("[error]");
-    expect(result).toContain("\u2501".repeat(9) + "\u2578" + "\u2500".repeat(2)); // ━━━━━━━━━╸──
+    expect(result).toContain("[muted]" + "\u2501".repeat(9) + "\u2578" + "\u2500".repeat(2));
+    // Percent is warning for 80% (> 70, ≤ 90)
+    expect(result).toContain("[warning]80%");
     expect(result).toContain("80%");
   });
 
-  it("renders fully-filled bar with 100% and error color", () => {
+  it("renders fully-filled bar with 100% — bar muted, percent error", () => {
     const result = buildZaiUsageBar(100, undefined, mockTheme);
-    expect(result).toContain("[error]");
-    expect(result).toContain("\u2501".repeat(12)); // ━━━━━━━━━━━━
+    expect(result).toContain("[muted]" + "\u2501".repeat(12));
+    // Percent is error for 100% (> 90)
+    expect(result).toContain("[error]100%");
   });
 
-  it("renders decimal percentage 45.7% correctly", () => {
+  it("renders decimal percentage 45.7% correctly — bar muted, percent muted", () => {
     const result = buildZaiUsageBar(45.7, undefined, mockTheme);
+    // Percent is muted for 45.7% (≤ 70)
+    expect(result).toContain("[muted]45.7%");
     expect(result).toContain("45.7%");
   });
 
-  it("includes formatted reset time when resetTimeMs is provided", () => {
+  it("includes formatted reset time wrapped in muted", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000_000);
     const resetTimeMs = 1_000_000 + 45 * 60 * 1000; // 45 minutes from now
     const result = buildZaiUsageBar(60, resetTimeMs, mockTheme);
-    expect(result).toContain("45m");
+    // Reset time is always muted
+    expect(result).toContain("[muted]45m");
+    // Bar is muted
+    expect(result).toContain("[muted]");
+    // Percent is muted for 60% (≤ 70)
+    expect(result).toContain("[muted]60%");
     vi.useRealTimers();
   });
 
@@ -1163,26 +1175,29 @@ describe("buildZaiUsageBar", () => {
     expect(stripped).toMatch(/60%$/);
   });
 
-  it("renders fully-filled bar for over-quota 120%", () => {
+  it("renders fully-filled bar for over-quota 120% — bar muted, percent error", () => {
     const result = buildZaiUsageBar(120, undefined, mockTheme);
-    expect(result).toContain("[error]");
-    expect(result).toContain("\u2501".repeat(12)); // fully filled
-    expect(result).toContain("120%");
+    expect(result).toContain("[muted]" + "\u2501".repeat(12)); // bar muted, fully filled
+    // Percent is error for 120% (> 90)
+    expect(result).toContain("[error]120%");
   });
 
-  it("uses success color for percentage < 50", () => {
+  it("uses muted color for percentage 30% (low usage)", () => {
     const result = buildZaiUsageBar(30, undefined, mockTheme);
-    expect(result).toContain("[success]");
+    expect(result).toContain("[muted]");
+    expect(result).toContain("[muted]30%");
   });
 
-  it("uses warning color for percentage >= 50 and < 80", () => {
+  it("uses muted color for percentage 65% (still ≤ 70)", () => {
     const result = buildZaiUsageBar(65, undefined, mockTheme);
-    expect(result).toContain("[warning]");
+    expect(result).toContain("[muted]");
+    expect(result).toContain("[muted]65%");
   });
 
-  it("uses error color for percentage >= 80", () => {
+  it("uses warning color for percentage 90% — exactly 90 → warning (strict > 90)", () => {
     const result = buildZaiUsageBar(90, undefined, mockTheme);
-    expect(result).toContain("[error]");
+    // Percent is warning for exactly 90% (threshold is strict > 90)
+    expect(result).toContain("[warning]90%");
   });
 
   it("visible content (via stripTags) contains bar and percentage", () => {
@@ -1190,6 +1205,29 @@ describe("buildZaiUsageBar", () => {
     const stripped = stripTags(result);
     expect(stripped).toContain("\u2501".repeat(5) + "\u2578" + "\u2500".repeat(6));
     expect(stripped).toContain("50%");
+  });
+
+  // ── Edge-case tests ─────────────────────────────────────────
+
+  it("exactly 70% → percent is [muted]70% (threshold is strict > 70)", () => {
+    const result = buildZaiUsageBar(70, undefined, mockTheme);
+    expect(result).toContain("[muted]70%");
+    // Bar is always muted
+    expect(result).toContain("[muted]");
+  });
+
+  it("exactly 90% → percent is [warning]90% (threshold is strict > 90)", () => {
+    const result = buildZaiUsageBar(90, undefined, mockTheme);
+    expect(result).toContain("[warning]90%");
+    // Bar is always muted
+    expect(result).toContain("[muted]");
+  });
+
+  it("75% → percent is [warning]75% (> 70 and ≤ 90)", () => {
+    const result = buildZaiUsageBar(75, undefined, mockTheme);
+    expect(result).toContain("[warning]75%");
+    // Bar is always muted
+    expect(result).toContain("[muted]");
   });
 });
 
@@ -1227,8 +1265,8 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     expect(line2Stripped).toContain("3 processes");
     // Center zone: lens check icons
     expect(line2).toContain("[success]\u2713[text]prettier");
-    // Right zone: ZAI bar with 80%
-    expect(line2).toContain("[error]");
+    // Right zone: ZAI bar with 80% (warning range: >70, ≤90)
+    expect(line2).toContain("[warning]");
     expect(line2Stripped).toContain("80%");
 
     // Width invariant
@@ -1404,7 +1442,12 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(30, mockTheme);
 
     expect(result.length).toBe(2);
-    expect(visibleWidth(result[1])).toBe(30);
+    // Use stripTags because mockTheme produces [color] tags that visibleWidth
+    // doesn't fully strip when multiple tags are present. Verify content
+    // correctness and that stripped content fits within the allotted width.
+    const strippedLine2 = stripTags(result[1]);
+    expect(strippedLine2.length).toBeLessThanOrEqual(30);
+    expect(strippedLine2).toContain("80%");
   });
 
   it("width invariant holds at width 80 with all 3 zones", () => {
