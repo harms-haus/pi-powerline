@@ -14,25 +14,25 @@ Then restart pi or run `/reload`.
 
 ### Above the Composer
 
-| Left | Right |
-|------|-------|
-| Todo/task count (`📋 6/10`) | RPIR workflow phase (`🔬 Implementing [2/5]`) |
-| Active todo/task items (one per line) | |
+| Left                                  | Right                                         |
+| ------------------------------------- | --------------------------------------------- |
+| Todo/task count (`📋 6/10`)           | RPIR workflow phase (`🔬 Implementing [2/5]`) |
+| Active todo/task items (one per line) |                                               |
 
 ### Below the Composer (Footer)
 
 **Line 1:**
 
-| Left | Right |
-|------|-------|
-| Working directory (`~/project`) | Context usage (`15k/1.0M 1.5%`) |
-| Git branch (`(main)`) | Model & thinking level (`qwen3.6-plus • medium`) |
-| Git changes (`+388 -124`) | |
+| Left                            | Right                                            |
+| ------------------------------- | ------------------------------------------------ |
+| Working directory (`~/project`) | Context usage (`15k/1.0M 1.5%`)                  |
+| Git branch (`(main)`)           | Model & thinking level (`qwen3.6-plus • medium`) |
+| Git changes (`+388 -124`)       |                                                  |
 
 **Line 2** (shown when LSP/lint data or ZAI usage is available):
 
-| Left | Center | Right |
-|------|--------|-------|
+| Left                                | Center                               | Right                               |
+| ----------------------------------- | ------------------------------------ | ----------------------------------- |
 | Process count (from `pi-processes`) | LSP and lint status (center-aligned) | ZAI usage bar (from `pi-zai-usage`) |
 
 ### ZAI Usage Bar
@@ -75,12 +75,12 @@ The footer's second line displays real-time LSP server and linter status when da
 ✓typescript ✗rust • ✓ESLint ✗Biome
 ```
 
-| Segment | Meaning |
-|---------|----------|
-| `✓typescript` | Active LSP server, clean |
-| `✗rust` | Available (not running) LSP server, dirty |
-| `✓ESLint` | Configured linter, clean |
-| `✗Biome` | Configured linter, dirty |
+| Segment       | Meaning                                   |
+| ------------- | ----------------------------------------- |
+| `✓typescript` | Active LSP server, clean                  |
+| `✗rust`       | Available (not running) LSP server, dirty |
+| `✓ESLint`     | Configured linter, clean                  |
+| `✗Biome`      | Configured linter, dirty                  |
 
 LSP and lint groups are separated by a dim `•` bullet. The entire status block is center-aligned within the available width.
 

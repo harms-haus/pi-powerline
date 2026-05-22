@@ -241,15 +241,10 @@ export function buildZaiUsageBar(
   } else if (percentage >= 100) {
     bar = "\u2501".repeat(BAR_WIDTH);
   } else {
-    bar =
-      "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(BAR_WIDTH - filled);
+    bar = "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(BAR_WIDTH - filled);
   }
-  const percentColor =
-    percentage > 90 ? "error" : percentage > 70 ? "warning" : "muted";
-  let result =
-    theme.fg("muted", bar) +
-    " " +
-    theme.fg(percentColor, formatPercentage(percentage));
+  const percentColor = percentage > 90 ? "error" : percentage > 70 ? "warning" : "muted";
+  let result = theme.fg("muted", bar) + " " + theme.fg(percentColor, formatPercentage(percentage));
   if (resetTimeMs !== undefined && resetTimeMs > 0) {
     result += " " + theme.fg("muted", formatResetTime(resetTimeMs));
   }
@@ -341,8 +336,7 @@ export function buildThreeZoneLine(
     if (centerW <= remainingWidth) {
       const centerPad = Math.max(0, Math.floor((remainingWidth - centerW) / 2));
       const rightPad = Math.max(0, availableWidth - leftW - centerPad - centerW);
-      leftCenterContent =
-        adjustedLeft + " ".repeat(centerPad) + centerPart + " ".repeat(rightPad);
+      leftCenterContent = adjustedLeft + " ".repeat(centerPad) + centerPart + " ".repeat(rightPad);
     } else {
       const truncated = truncateToWidth(centerPart, remainingWidth, "…");
       const rightPad = Math.max(0, availableWidth - leftW - visibleWidth(truncated));
@@ -353,10 +347,7 @@ export function buildThreeZoneLine(
   // Ensure leftCenterContent is exactly availableWidth visible chars
   const lcW = visibleWidth(leftCenterContent);
   const line =
-    leftCenterContent +
-    " ".repeat(Math.max(0, availableWidth - lcW)) +
-    " ".repeat(gap) +
-    rightPart;
+    leftCenterContent + " ".repeat(Math.max(0, availableWidth - lcW)) + " ".repeat(gap) + rightPart;
   // Pad to exact width
   const lineW = visibleWidth(line);
   if (lineW < width) {

@@ -68,7 +68,13 @@ vi.mock("../helpers", () => ({
 
 import * as state from "../state";
 import * as git from "../git";
-import { renderFooterLine, parseZaiUsageStatus, formatResetTime, formatPercentage, buildZaiUsageBar } from "../footer";
+import {
+  renderFooterLine,
+  parseZaiUsageStatus,
+  formatResetTime,
+  formatPercentage,
+  buildZaiUsageBar,
+} from "../footer";
 
 import { mockTheme, stripTags } from "./test-utils.js";
 
@@ -1057,23 +1063,23 @@ describe("parseZaiUsageStatus", () => {
 });
 
 describe("formatPercentage", () => {
-  it("formats whole number 80 as \"80%\"", () => {
+  it('formats whole number 80 as "80%"', () => {
     expect(formatPercentage(80)).toBe("80%");
   });
 
-  it("formats decimal 45.7 as \"45.7%\"", () => {
+  it('formats decimal 45.7 as "45.7%"', () => {
     expect(formatPercentage(45.7)).toBe("45.7%");
   });
 
-  it("formats 0 as \"0%\"", () => {
+  it('formats 0 as "0%"', () => {
     expect(formatPercentage(0)).toBe("0%");
   });
 
-  it("formats 100 as \"100%\"", () => {
+  it('formats 100 as "100%"', () => {
     expect(formatPercentage(100)).toBe("100%");
   });
 
-  it("formats 33.33 as \"33.3%\" (one decimal place)", () => {
+  it('formats 33.33 as "33.3%" (one decimal place)', () => {
     expect(formatPercentage(33.33)).toBe("33.3%");
   });
 });
@@ -1088,22 +1094,22 @@ describe("formatResetTime", () => {
     vi.useRealTimers();
   });
 
-  it("formats 2 hours 15 minutes from now as \"2h 15m\"", () => {
+  it('formats 2 hours 15 minutes from now as "2h 15m"', () => {
     const resetTimeMs = 1_000_000 + (2 * 3600 + 15 * 60) * 1000;
     expect(formatResetTime(resetTimeMs)).toBe("2h 15m");
   });
 
-  it("formats 45 minutes from now as \"45m\"", () => {
+  it('formats 45 minutes from now as "45m"', () => {
     const resetTimeMs = 1_000_000 + 45 * 60 * 1000;
     expect(formatResetTime(resetTimeMs)).toBe("45m");
   });
 
-  it("formats 30 seconds from now as \"30s\"", () => {
+  it('formats 30 seconds from now as "30s"', () => {
     const resetTimeMs = 1_000_000 + 30 * 1000;
     expect(formatResetTime(resetTimeMs)).toBe("30s");
   });
 
-  it("formats 15 minutes 30 seconds from now as \"15m 30s\"", () => {
+  it('formats 15 minutes 30 seconds from now as "15m 30s"', () => {
     const resetTimeMs = 1_000_000 + (15 * 60 + 30) * 1000;
     expect(formatResetTime(resetTimeMs)).toBe("15m 30s");
   });
@@ -1341,10 +1347,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
       getGitBranch: () => null,
       onBranchChange: () => () => {},
       getAvailableProviderCount: () => 0,
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          ["zai-usage", zaiUsage(80)],
-        ]),
+      getExtensionStatuses: () => new Map<string, string>([["zai-usage", zaiUsage(80)]]),
     };
 
     const result = renderFooterLine(120, mockTheme);
@@ -1360,8 +1363,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
       getGitBranch: () => null,
       onBranchChange: () => () => {},
       getAvailableProviderCount: () => 0,
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-processes", "3 processes"]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-processes", "3 processes"]]),
     };
 
     const result = renderFooterLine(120, mockTheme);
@@ -1377,8 +1379,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
       getGitBranch: () => null,
       onBranchChange: () => () => {},
       getAvailableProviderCount: () => 0,
-      getExtensionStatuses: () =>
-        new Map<string, string>([["pi-lens", lensClean()]]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-lens", lensClean()]]),
     };
 
     const result = renderFooterLine(120, mockTheme);
