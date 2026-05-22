@@ -14,6 +14,11 @@ interface LensStatusPayload {
   tsc: CheckStatus;
 }
 
+interface ZaiUsagePayload {
+  percentage: number;
+  resetTimeMs?: number;
+}
+
 const CONTEXT_WARNING_THRESHOLD = 70;
 const CONTEXT_CRITICAL_THRESHOLD = 90;
 
@@ -178,6 +183,80 @@ function buildLine1(
   return alignLeftRight(left, right, width);
 }
 
+// ─── ZAI Usage Bar ──────────────────────────────────────────────
+
+export function parseZaiUsageStatus(raw: string | undefined): ZaiUsagePayload | null {
+  if (raw === undefined || raw === "") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const obj = parsed as Record<string, unknown>;
+  if (typeof obj.percentage !== "number" || !isFinite(obj.percentage)) return null;
+  const percentage = obj.percentage;
+  let resetTimeMs: number | undefined;
+  if (obj.resetTimeMs !== undefined) {
+    if (typeof obj.resetTimeMs !== "number") return null;
+    resetTimeMs = obj.resetTimeMs;
+  }
+  return { percentage, resetTimeMs };
+}
+
+export function formatResetTime(resetTimeMs: number): string {
+  const remaining = Math.max(0, resetTimeMs - Date.now());
+  if (remaining === 0) return "";
+  const totalSeconds = Math.floor(remaining / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours >= 1) {
+    return `${hours}h ${minutes}m`;
+  }
+  if (minutes >= 1) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  return `${seconds}s`;
+}
+
+export function formatPercentage(pct: number): string {
+  if (pct === Math.floor(pct)) {
+    return pct.toFixed(0) + "%";
+  }
+  return pct.toFixed(1) + "%";
+}
+
+export function buildZaiUsageBar(
+  percentage: number,
+  resetTimeMs: number | undefined,
+  theme: Theme,
+): string {
+  const BAR_WIDTH = 12;
+  const filled = Math.min(BAR_WIDTH, Math.round((percentage / 100) * BAR_WIDTH));
+  let bar: string;
+  if (percentage === 0) {
+    bar = "\u2500".repeat(BAR_WIDTH);
+  } else if (percentage >= 100) {
+    bar = "\u2501".repeat(BAR_WIDTH);
+  } else {
+    bar =
+      "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(BAR_WIDTH - filled);
+  }
+  let display = bar + " " + formatPercentage(percentage);
+  if (resetTimeMs !== undefined && resetTimeMs > 0) {
+    display += " " + formatResetTime(resetTimeMs);
+  }
+  if (percentage < 50) {
+    return theme.fg("success", display);
+  }
+  if (percentage < 80) {
+    return theme.fg("warning", display);
+  }
+  return theme.fg("error", display);
+}
+
 // ─── Line 2 Builders ─────────────────────────────────────────────
 
 function checkStatusIcon(status: CheckStatus): {
@@ -233,6 +312,60 @@ function buildCenteredLine(centerPart: string, width: number): string {
   return truncated + " ".repeat(Math.max(0, width - visibleWidth(truncated)));
 }
 
+export function buildThreeZoneLine(
+  leftPart: string,
+  centerPart: string,
+  rightPart: string,
+  width: number,
+): string {
+  const rightW = visibleWidth(rightPart);
+  const gap = 2;
+  const availableWidth = Math.max(0, width - rightW - gap);
+
+  let leftCenterContent: string;
+  if (!leftPart && !centerPart) {
+    leftCenterContent = " ".repeat(availableWidth);
+  } else if (!leftPart) {
+    leftCenterContent = buildCenteredLine(centerPart, availableWidth);
+  } else if (!centerPart) {
+    leftCenterContent = leftPart + " ".repeat(Math.max(0, availableWidth - visibleWidth(leftPart)));
+  } else {
+    const maxLeftW = Math.floor(availableWidth / 3);
+    let leftW = visibleWidth(leftPart);
+    let adjustedLeft = leftPart;
+    if (leftW > maxLeftW) {
+      adjustedLeft = truncateToWidth(leftPart, maxLeftW, "…");
+      leftW = visibleWidth(adjustedLeft);
+    }
+    const centerW = visibleWidth(centerPart);
+    const remainingWidth = availableWidth - leftW;
+    if (centerW <= remainingWidth) {
+      const centerPad = Math.max(0, Math.floor((remainingWidth - centerW) / 2));
+      const rightPad = Math.max(0, availableWidth - leftW - centerPad - centerW);
+      leftCenterContent =
+        adjustedLeft + " ".repeat(centerPad) + centerPart + " ".repeat(rightPad);
+    } else {
+      const truncated = truncateToWidth(centerPart, remainingWidth, "…");
+      const rightPad = Math.max(0, availableWidth - leftW - visibleWidth(truncated));
+      leftCenterContent = adjustedLeft + truncated + " ".repeat(rightPad);
+    }
+  }
+
+  // Ensure leftCenterContent is exactly availableWidth visible chars
+  const lcW = visibleWidth(leftCenterContent);
+  const line =
+    leftCenterContent +
+    " ".repeat(Math.max(0, availableWidth - lcW)) +
+    " ".repeat(gap) +
+    rightPart;
+  // Pad to exact width
+  const lineW = visibleWidth(line);
+  if (lineW < width) {
+    return line + " ".repeat(width - lineW);
+  }
+  return line;
+}
+
 function buildLine2(
   width: number,
   theme: Theme,
@@ -248,6 +381,15 @@ function buildLine2(
 
   const centerPart = lensParts.length > 0 ? lensParts.join(" ") : "";
 
+  // Check for ZAI usage status
+  const zaiPayload = parseZaiUsageStatus(statuses.get("zai-usage"));
+  if (zaiPayload) {
+    const rightPart = buildZaiUsageBar(zaiPayload.percentage, zaiPayload.resetTimeMs, theme);
+    if (!leftPart && !centerPart) return null;
+    return buildThreeZoneLine(leftPart, centerPart, rightPart, width);
+  }
+
+  // Original 2-zone behavior (unchanged)
   if (!leftPart && !centerPart) return null;
 
   if (!leftPart) return buildCenteredLine(centerPart, width);

@@ -29,11 +29,24 @@ Then restart pi or run `/reload`.
 | Git branch (`(main)`) | Model & thinking level (`qwen3.6-plus • medium`) |
 | Git changes (`+388 -124`) | |
 
-**Line 2** (shown when LSP/lint data is available):
+**Line 2** (shown when LSP/lint data or ZAI usage is available):
 
-| Left | Center |
-|------|--------|
-| Process count (from `pi-processes`) | LSP and lint status (center-aligned) |
+| Left | Center | Right |
+|------|--------|-------|
+| Process count (from `pi-processes`) | LSP and lint status (center-aligned) | ZAI usage bar (from `pi-zai-usage`) |
+
+### ZAI Usage Bar
+
+When using a Z.ai model, a thin progress bar appears on the right side of Line 2:
+
+```
+━━━━━━━━━╸─── 80% 2h 15m
+```
+
+- Uses box-drawing characters (`━╸─`) for a thin, terminal-native look
+- Color-coded: green (<50%), yellow (50–80%), red (>80%)
+- Shows percentage and time until quota reset
+- Only visible when `pi-zai-usage` is installed and a ZAI model is active
 
 ## LSP and Lint Status Display
 
@@ -93,6 +106,7 @@ Both use structured JSON payloads. If the payload is not valid JSON, the raw str
   - `pi-lint` — configured linter status (clean/dirty)
   - `pi-processes` — active process count
   - `pi-git` — enriched git status (branch, diff stats, file counts)
+  - `zai-usage` — Z.ai token quota usage (JSON: `{ percentage, resetTimeMs }`)
 - **Smart truncation** — gracefully handles narrow terminals while preserving context warnings
 - **Debounced git polling** — efficient `git diff` updates (debounced 500ms on file changes, immediate on turn end)
 

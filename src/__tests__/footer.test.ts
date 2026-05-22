@@ -68,7 +68,7 @@ vi.mock("../helpers", () => ({
 
 import * as state from "../state";
 import * as git from "../git";
-import { renderFooterLine } from "../footer";
+import { renderFooterLine, parseZaiUsageStatus, formatResetTime, formatPercentage, buildZaiUsageBar } from "../footer";
 
 import { mockTheme, stripTags } from "./test-utils.js";
 
@@ -998,5 +998,431 @@ describe("renderFooterLine error handling", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result).toEqual(["[powerline error]"]);
+  });
+});
+
+// ─── ZAI Usage Progress Bar ──────────────────────────────────────
+
+describe("parseZaiUsageStatus", () => {
+  it("returns parsed payload for valid JSON with percentage and resetTimeMs", () => {
+    const input = JSON.stringify({ percentage: 45.7, resetTimeMs: 1700000000000 });
+    expect(parseZaiUsageStatus(input)).toEqual({
+      percentage: 45.7,
+      resetTimeMs: 1700000000000,
+    });
+  });
+
+  it("returns parsed payload for valid JSON with only percentage", () => {
+    const input = JSON.stringify({ percentage: 80 });
+    expect(parseZaiUsageStatus(input)).toEqual({
+      percentage: 80,
+      resetTimeMs: undefined,
+    });
+  });
+
+  it("returns null for undefined input", () => {
+    expect(parseZaiUsageStatus(undefined)).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(parseZaiUsageStatus("")).toBeNull();
+  });
+
+  it("returns null for malformed JSON", () => {
+    expect(parseZaiUsageStatus("not-json")).toBeNull();
+  });
+
+  it("returns null when percentage field is missing", () => {
+    const input = JSON.stringify({ resetTimeMs: 1700000000000 });
+    expect(parseZaiUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null when percentage is NaN", () => {
+    const input = JSON.stringify({ percentage: NaN });
+    expect(parseZaiUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null when percentage is Infinity", () => {
+    const input = JSON.stringify({ percentage: Infinity });
+    expect(parseZaiUsageStatus(input)).toBeNull();
+  });
+
+  it("returns payload for percentage > 100 (over-quota)", () => {
+    const input = JSON.stringify({ percentage: 120 });
+    expect(parseZaiUsageStatus(input)).toEqual({
+      percentage: 120,
+      resetTimeMs: undefined,
+    });
+  });
+});
+
+describe("formatPercentage", () => {
+  it("formats whole number 80 as \"80%\"", () => {
+    expect(formatPercentage(80)).toBe("80%");
+  });
+
+  it("formats decimal 45.7 as \"45.7%\"", () => {
+    expect(formatPercentage(45.7)).toBe("45.7%");
+  });
+
+  it("formats 0 as \"0%\"", () => {
+    expect(formatPercentage(0)).toBe("0%");
+  });
+
+  it("formats 100 as \"100%\"", () => {
+    expect(formatPercentage(100)).toBe("100%");
+  });
+
+  it("formats 33.33 as \"33.3%\" (one decimal place)", () => {
+    expect(formatPercentage(33.33)).toBe("33.3%");
+  });
+});
+
+describe("formatResetTime", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("formats 2 hours 15 minutes from now as \"2h 15m\"", () => {
+    const resetTimeMs = 1_000_000 + (2 * 3600 + 15 * 60) * 1000;
+    expect(formatResetTime(resetTimeMs)).toBe("2h 15m");
+  });
+
+  it("formats 45 minutes from now as \"45m\"", () => {
+    const resetTimeMs = 1_000_000 + 45 * 60 * 1000;
+    expect(formatResetTime(resetTimeMs)).toBe("45m");
+  });
+
+  it("formats 30 seconds from now as \"30s\"", () => {
+    const resetTimeMs = 1_000_000 + 30 * 1000;
+    expect(formatResetTime(resetTimeMs)).toBe("30s");
+  });
+
+  it("formats 15 minutes 30 seconds from now as \"15m 30s\"", () => {
+    const resetTimeMs = 1_000_000 + (15 * 60 + 30) * 1000;
+    expect(formatResetTime(resetTimeMs)).toBe("15m 30s");
+  });
+
+  it("returns empty string for past time (0 remaining)", () => {
+    const resetTimeMs = 1_000_000 - 1000;
+    expect(formatResetTime(resetTimeMs)).toBe("");
+  });
+});
+
+describe("buildZaiUsageBar", () => {
+  it("renders empty bar with 0% and success color", () => {
+    const result = buildZaiUsageBar(0, undefined, mockTheme);
+    expect(result).toContain("[success]");
+    expect(result).toContain("\u2500".repeat(12)); // ────────────
+    expect(result).toContain("0%");
+  });
+
+  it("renders half-filled bar with 50% and warning color", () => {
+    const result = buildZaiUsageBar(50, undefined, mockTheme);
+    expect(result).toContain("[warning]");
+    expect(result).toContain("\u2501".repeat(5) + "\u2578" + "\u2500".repeat(6)); // ━━━━━╸──────
+    expect(result).toContain("50%");
+  });
+
+  it("renders mostly-filled bar with 80% and error color", () => {
+    const result = buildZaiUsageBar(80, undefined, mockTheme);
+    expect(result).toContain("[error]");
+    expect(result).toContain("\u2501".repeat(9) + "\u2578" + "\u2500".repeat(2)); // ━━━━━━━━━╸──
+    expect(result).toContain("80%");
+  });
+
+  it("renders fully-filled bar with 100% and error color", () => {
+    const result = buildZaiUsageBar(100, undefined, mockTheme);
+    expect(result).toContain("[error]");
+    expect(result).toContain("\u2501".repeat(12)); // ━━━━━━━━━━━━
+  });
+
+  it("renders decimal percentage 45.7% correctly", () => {
+    const result = buildZaiUsageBar(45.7, undefined, mockTheme);
+    expect(result).toContain("45.7%");
+  });
+
+  it("includes formatted reset time when resetTimeMs is provided", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const resetTimeMs = 1_000_000 + 45 * 60 * 1000; // 45 minutes from now
+    const result = buildZaiUsageBar(60, resetTimeMs, mockTheme);
+    expect(result).toContain("45m");
+    vi.useRealTimers();
+  });
+
+  it("does not include time suffix when resetTimeMs is undefined", () => {
+    const result = buildZaiUsageBar(60, undefined, mockTheme);
+    const stripped = stripTags(result);
+    // Should end right after the percentage
+    expect(stripped).toMatch(/60%$/);
+  });
+
+  it("renders fully-filled bar for over-quota 120%", () => {
+    const result = buildZaiUsageBar(120, undefined, mockTheme);
+    expect(result).toContain("[error]");
+    expect(result).toContain("\u2501".repeat(12)); // fully filled
+    expect(result).toContain("120%");
+  });
+
+  it("uses success color for percentage < 50", () => {
+    const result = buildZaiUsageBar(30, undefined, mockTheme);
+    expect(result).toContain("[success]");
+  });
+
+  it("uses warning color for percentage >= 50 and < 80", () => {
+    const result = buildZaiUsageBar(65, undefined, mockTheme);
+    expect(result).toContain("[warning]");
+  });
+
+  it("uses error color for percentage >= 80", () => {
+    const result = buildZaiUsageBar(90, undefined, mockTheme);
+    expect(result).toContain("[error]");
+  });
+
+  it("visible content (via stripTags) contains bar and percentage", () => {
+    const result = buildZaiUsageBar(50, undefined, mockTheme);
+    const stripped = stripTags(result);
+    expect(stripped).toContain("\u2501".repeat(5) + "\u2578" + "\u2500".repeat(6));
+    expect(stripped).toContain("50%");
+  });
+});
+
+// ─── buildLine2 with ZAI Usage (3-zone layout) ────────────────────
+
+describe("buildLine2 with ZAI usage (3-zone layout)", () => {
+  const zaiUsage = (percentage: number, resetTimeMs?: number) =>
+    JSON.stringify({ percentage, resetTimeMs });
+
+  const lensClean = () =>
+    JSON.stringify({ prettier: "clean", linters: "clean", lsp: "clean", tsc: "clean" });
+
+  // ── All 3 zones ──────────────────────────────────────────────
+
+  it("renders all 3 zones (processes + lens + zai-usage) at width 120", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["pi-lens", lensClean()],
+          ["zai-usage", zaiUsage(80, Date.now() + 7200000)],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    const line2Stripped = stripTags(line2);
+
+    // Left zone: processes text
+    expect(line2Stripped).toContain("3 processes");
+    // Center zone: lens check icons
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    // Right zone: ZAI bar with 80%
+    expect(line2).toContain("[error]");
+    expect(line2Stripped).toContain("80%");
+
+    // Width invariant
+    expect(visibleWidth(line2)).toBe(120);
+
+    // ZAI bar is right-aligned (appears after the last lens check text)
+    const tscIdx = line2Stripped.indexOf("tsc");
+    const barIdx = line2Stripped.indexOf("\u2501");
+    expect(barIdx).toBeGreaterThan(tscIdx);
+  });
+
+  // ── 2 zones: lens + zai-usage (no processes) ────────────────
+
+  it("renders 2 zones (lens + zai-usage, no processes) at width 120", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-lens", lensClean()],
+          ["zai-usage", zaiUsage(60)],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    const line2Stripped = stripTags(line2);
+
+    // Center: lens icons
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    // Right: ZAI bar
+    expect(line2Stripped).toContain("60%");
+    // Width
+    expect(visibleWidth(line2)).toBe(120);
+  });
+
+  // ── 2 zones: processes + zai-usage (no lens) ────────────────
+
+  it("renders 2 zones (processes + zai-usage, no lens) at width 120", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["zai-usage", zaiUsage(45)],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1];
+    const line2Stripped = stripTags(line2);
+
+    // Left: processes
+    expect(line2Stripped).toContain("3 processes");
+    // Right: ZAI bar
+    expect(line2Stripped).toContain("45%");
+    // Width
+    expect(visibleWidth(line2)).toBe(120);
+  });
+
+  // ── 1 zone: zai-usage only ─────────────────────────────────
+
+  it("returns null for zai-usage only (no processes or lens)", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["zai-usage", zaiUsage(80)],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    // No line 2 when only zai-usage present (no left or center content)
+    expect(result.length).toBe(1);
+  });
+
+  // ── Backward compatibility (no zai-usage) ────────────────────
+
+  it("backward compat: only pi-processes → left-aligned, no zai bar", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-processes", "3 processes"]]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+    expect(line2Stripped.indexOf("3 processes")).toBe(0);
+    expect(visibleWidth(result[1])).toBe(120);
+  });
+
+  it("backward compat: only pi-lens → centered, no zai bar", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([["pi-lens", lensClean()]]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+    // Centered: does not start at position 0
+    expect(line2Stripped.indexOf("\u2713")).toBeGreaterThan(0);
+    expect(visibleWidth(result[1])).toBe(120);
+  });
+
+  it("backward compat: processes + lens → left+center, no zai bar", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["pi-lens", lensClean()],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2Stripped = stripTags(result[1]);
+    expect(line2Stripped.indexOf("3 processes")).toBe(0);
+    expect(result[1]).toContain("[text]prettier");
+    expect(visibleWidth(result[1])).toBe(120);
+  });
+
+  it("backward compat: no statuses → single line, null line 2", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () => new Map<string, string>(),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+  });
+
+  // ── Narrow terminal ─────────────────────────────────────────
+
+  it("width invariant holds at narrow width 30 with all 3 zones", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["pi-lens", lensClean()],
+          ["zai-usage", zaiUsage(80)],
+        ]),
+    };
+
+    const result = renderFooterLine(30, mockTheme);
+
+    expect(result.length).toBe(2);
+    expect(visibleWidth(result[1])).toBe(30);
+  });
+
+  it("width invariant holds at width 80 with all 3 zones", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["pi-lens", lensClean()],
+          ["zai-usage", zaiUsage(80)],
+        ]),
+    };
+
+    const result = renderFooterLine(80, mockTheme);
+
+    expect(result.length).toBe(2);
+    expect(visibleWidth(result[1])).toBe(80);
   });
 });
