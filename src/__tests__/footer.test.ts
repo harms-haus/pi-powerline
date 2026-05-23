@@ -1109,19 +1109,34 @@ describe("formatResetTime", () => {
     expect(formatResetTime(resetTimeMs)).toBe("45m");
   });
 
-  it('formats 30 seconds from now as "30s"', () => {
+  it('formats 30 seconds from now as "<1m"', () => {
     const resetTimeMs = 1_000_000 + 30 * 1000;
-    expect(formatResetTime(resetTimeMs)).toBe("30s");
+    expect(formatResetTime(resetTimeMs)).toBe("<1m");
   });
 
-  it('formats 15 minutes 30 seconds from now as "15m 30s"', () => {
+  it('formats 15 minutes 30 seconds from now as "15m"', () => {
     const resetTimeMs = 1_000_000 + (15 * 60 + 30) * 1000;
-    expect(formatResetTime(resetTimeMs)).toBe("15m 30s");
+    expect(formatResetTime(resetTimeMs)).toBe("15m");
   });
 
   it("returns empty string for past time (0 remaining)", () => {
     const resetTimeMs = 1_000_000 - 1000;
     expect(formatResetTime(resetTimeMs)).toBe("");
+  });
+
+  it('formats 59 seconds from now as "<1m"', () => {
+    const resetTimeMs = 1_000_000 + 59 * 1000;
+    expect(formatResetTime(resetTimeMs)).toBe("<1m");
+  });
+
+  it('formats exactly 60 seconds from now as "1m"', () => {
+    const resetTimeMs = 1_000_000 + 60 * 1000;
+    expect(formatResetTime(resetTimeMs)).toBe("1m");
+  });
+
+  it('formats 500ms from now as "<1m"', () => {
+    const resetTimeMs = 1_000_000 + 500;
+    expect(formatResetTime(resetTimeMs)).toBe("<1m");
   });
 });
 

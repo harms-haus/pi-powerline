@@ -212,14 +212,13 @@ export function formatResetTime(resetTimeMs: number): string {
   const totalSeconds = Math.floor(remaining / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
   if (hours >= 1) {
     return `${hours}h ${minutes}m`;
   }
   if (minutes >= 1) {
-    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    return `${minutes}m`;
   }
-  return `${seconds}s`;
+  return "<1m";
 }
 
 export function formatPercentage(pct: number): string {
