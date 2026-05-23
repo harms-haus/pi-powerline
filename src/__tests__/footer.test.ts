@@ -1060,6 +1060,11 @@ describe("parseZaiUsageStatus", () => {
       resetTimeMs: undefined,
     });
   });
+
+  it("returns null for negative percentage", () => {
+    const input = JSON.stringify({ percentage: -5 });
+    expect(parseZaiUsageStatus(input)).toBeNull();
+  });
 });
 
 describe("formatPercentage", () => {
@@ -1234,6 +1239,22 @@ describe("buildZaiUsageBar", () => {
     expect(result).toContain("[warning]75%");
     // Bar is always muted
     expect(result).toContain("[muted]");
+  });
+
+  it("renders single partial marker for tiny percentage (3%, filled=0 edge case)", () => {
+    const result = buildZaiUsageBar(3, undefined, mockTheme);
+    // filled = Math.round(3/100 * 12) = 0, so the filled===0 branch triggers
+    expect(result).toContain("[muted]" + "\u2578" + "\u2500".repeat(11));
+    expect(result).toContain("[muted]3%");
+  });
+
+  it("renders single partial marker for negative percentage (clamped to 0 filled)", () => {
+    // parseZaiUsageStatus rejects negatives, but buildZaiUsageBar is a public function
+    // that could receive any input. Verify it doesn't crash.
+    const result = buildZaiUsageBar(-5, undefined, mockTheme);
+    // filled clamped to 0, hits the filled===0 branch
+    expect(result).toContain("\u2578");
+    expect(result).toContain("-5%");
   });
 });
 

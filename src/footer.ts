@@ -196,6 +196,7 @@ export function parseZaiUsageStatus(raw: string | undefined): ZaiUsagePayload | 
   if (typeof parsed !== "object" || parsed === null) return null;
   const obj = parsed as Record<string, unknown>;
   if (typeof obj.percentage !== "number" || !isFinite(obj.percentage)) return null;
+  if (obj.percentage < 0) return null;
   const percentage = obj.percentage;
   let resetTimeMs: number | undefined;
   if (obj.resetTimeMs !== undefined) {
@@ -234,12 +235,14 @@ export function buildZaiUsageBar(
   theme: Theme,
 ): string {
   const BAR_WIDTH = 12;
-  const filled = Math.min(BAR_WIDTH, Math.round((percentage / 100) * BAR_WIDTH));
+  const filled = Math.max(0, Math.min(BAR_WIDTH, Math.round((percentage / 100) * BAR_WIDTH)));
   let bar: string;
   if (percentage === 0) {
     bar = "\u2500".repeat(BAR_WIDTH);
   } else if (percentage >= 100) {
     bar = "\u2501".repeat(BAR_WIDTH);
+  } else if (filled === 0) {
+    bar = "\u2578" + "\u2500".repeat(BAR_WIDTH - 1);
   } else {
     bar = "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(BAR_WIDTH - filled);
   }
