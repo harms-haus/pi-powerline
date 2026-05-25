@@ -101,7 +101,7 @@ describe("renderFooterLine", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     // Should contain the shortened cwd
     expect(stripped).toContain("~/project");
     // Should contain model info
@@ -120,7 +120,7 @@ describe("renderFooterLine", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("(main)");
     expect(stripped).toContain("+10");
     expect(stripped).toContain("-5");
@@ -146,7 +146,7 @@ describe("renderFooterLine", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("50k/128k");
     expect(stripped).toContain("39.1%");
     expect(stripped).toContain("sonnet-4");
@@ -174,7 +174,7 @@ describe("renderFooterLine", () => {
     expect(result.length).toBe(1);
     // The line should contain error-colored percentage
     expect(result[0]).toContain("[error]");
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("96%");
   });
 
@@ -200,7 +200,7 @@ describe("renderFooterLine", () => {
     expect(result.length).toBe(1);
     // The line should contain warning-colored percentage
     expect(result[0]).toContain("[warning]");
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("75%");
   });
 
@@ -209,7 +209,7 @@ describe("renderFooterLine", () => {
 
     expect(result.length).toBe(1);
     // With width=10, the output should be truncated to fit
-    const visibleWidth = stripTags(result[0]).length;
+    const visibleWidth = stripTags(result[0]!).length;
     expect(visibleWidth).toBeLessThanOrEqual(10);
   });
 
@@ -228,7 +228,7 @@ describe("renderFooterLine", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     expect(line2).toContain("[success]\u2713[text]prettier");
     expect(line2).toContain("[error]\u2717[text]linters");
     expect(line2).toContain("[success]\u2713[text]lsp");
@@ -256,7 +256,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(300, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("~/project");
     expect(stripped).toContain("(feature)");
     expect(stripped).toContain("+100");
@@ -280,7 +280,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("(main)");
     expect(stripped).toContain("+10");
     expect(stripped).toContain("-5");
@@ -296,7 +296,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     // Falls back to built-in rendering
     expect(stripped).toContain("+10");
     expect(stripped).toContain("-5");
@@ -313,7 +313,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     // Falls back to built-in rendering
     expect(stripped).toContain("(main)");
     expect(stripped).toContain("+10");
@@ -336,7 +336,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
     // Process count should be left-aligned (at position 0)
     expect(line2Stripped.indexOf("3 processes")).toBe(0);
     // Lens checks should appear somewhere in the line
@@ -353,7 +353,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
     expect(line2Stripped).toContain("3 processes");
     // Should be left-aligned
     expect(line2Stripped.indexOf("3 processes")).toBe(0);
@@ -374,7 +374,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     expect(line2).toContain("[text]prettier");
     expect(line2).toContain("[text]linters");
     // Centered: should not start at position 0
@@ -411,7 +411,7 @@ describe("renderFooterLine with pi-git integration", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).not.toContain("0 new");
     expect(stripped).not.toContain("0 deleted");
     expect(stripped).toContain("+20");
@@ -439,7 +439,7 @@ describe("buildLine2 truncation", () => {
     const result = renderFooterLine(width, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     const line2Stripped = stripTags(line2);
 
     // Full status should NOT appear — it was truncated
@@ -460,7 +460,7 @@ describe("buildLine2 truncation", () => {
     const result = renderFooterLine(width, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
 
     // Full status should appear — no truncation without center
     expect(line2Stripped).toContain(longStatus);
@@ -484,13 +484,13 @@ describe("buildLine2 truncation", () => {
     const result = renderFooterLine(width, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
 
     // Short status should appear in full
     expect(line2Stripped).toContain("3 procs");
     expect(line2Stripped.startsWith("3 procs")).toBe(true);
     // Total visible width should match
-    expect(visibleWidth(result[1])).toBe(width);
+    expect(visibleWidth(result[1]!)).toBe(width);
   });
 
   it("center is still properly centered after left truncation", () => {
@@ -510,7 +510,7 @@ describe("buildLine2 truncation", () => {
     const result = renderFooterLine(width, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     const line2Stripped = stripTags(line2);
 
     // Both left and center content should be present
@@ -547,7 +547,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     // success-colored checkmark for each check
     expect(line2).toContain("[success]\u2713[text]prettier");
     expect(line2).toContain("[success]\u2713[text]linters");
@@ -570,7 +570,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     expect(line2).toContain("[error]\u2717[text]linters");
     // Clean checks still render with success icon
     expect(line2).toContain("[success]\u2713[text]prettier");
@@ -593,7 +593,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     expect(line2).toContain("[dim]\u25CB[text]prettier");
     // Other checks still render normally
     expect(line2).toContain("[success]\u2713[text]linters");
@@ -614,7 +614,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     expect(line2).toContain("[dim]\u2014[text]tsc");
     // Other checks still render with success icon
     expect(line2).toContain("[success]\u2713[text]prettier");
@@ -637,7 +637,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     expect(line2).toContain("[error]\u26A0[text]prettier");
     // Other checks still render normally
     expect(line2).toContain("[success]\u2713[text]linters");
@@ -658,7 +658,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     // All four checks should be present, space-separated
     expect(line2).toContain("[success]\u2713[text]prettier [success]\u2713[text]linters");
     expect(line2).toContain("[success]\u2713[text]lsp [success]\u2713[text]tsc");
@@ -684,7 +684,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     // Each check gets its own icon
     expect(line2).toContain("[success]\u2713[text]prettier");
     expect(line2).toContain("[error]\u2717[text]linters");
@@ -721,7 +721,7 @@ describe("buildLine2 JSON rendering", () => {
 
     // pi-lens key exists → always renders line 2 with all 4 checks
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     expect(line2).toContain("[dim]\u2014[text]prettier");
     expect(line2).toContain("[dim]\u2014[text]linters");
     expect(line2).toContain("[dim]\u2014[text]lsp");
@@ -743,7 +743,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     // Running check gets warning-colored rotation icon
     expect(line2).toContain("[warning]\u27F3[text]prettier");
     // Other checks still render normally
@@ -761,7 +761,7 @@ describe("buildLine2 JSON rendering", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     // Falls back to plain string rendering with "Lens:" label
     expect(line2).toContain("[muted]Lens:");
     expect(line2).toContain("[dim]not-valid-json");
@@ -783,7 +783,7 @@ describe("buildContextDisplay edge cases", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("?/128k");
   });
 
@@ -800,7 +800,7 @@ describe("buildContextDisplay edge cases", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("50k/128k");
     // Should NOT contain a percentage
     expect(stripped).not.toMatch(/\d+\.\d+%/);
@@ -834,7 +834,7 @@ describe("buildModelDisplay edge cases", () => {
     expect(result.length).toBe(1);
     // Should contain the bullet separator and thinking level
     expect(result[0]).toContain("\u2022");
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("high");
   });
 });
@@ -848,7 +848,7 @@ describe("buildLine1 truncation edge cases", () => {
 
     expect(result.length).toBe(1);
     // Should be truncated to width
-    expect(stripTags(result[0]).length).toBeLessThanOrEqual(10);
+    expect(stripTags(result[0]!).length).toBeLessThanOrEqual(10);
   });
 });
 
@@ -869,7 +869,7 @@ describe("buildLine2 center truncation", () => {
     const result = renderFooterLine(30, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
     // Should be truncated to width
     expect(line2Stripped.length).toBeLessThanOrEqual(30);
   });
@@ -902,7 +902,7 @@ describe("collectFooterContext with api thinking level", () => {
     expect(result.length).toBe(1);
     // Should include thinking level when model has reasoning=true (this model has reasoning=false,
     // so thinking level should NOT be displayed as bullet)
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("sonnet-4");
   });
 });
@@ -926,7 +926,7 @@ describe("buildModelDisplay: provider without modelRegistry", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(1);
-    const stripped = stripTags(result[0]);
+    const stripped = stripTags(result[0]!);
     expect(stripped).toContain("(anthropic)");
   });
 });
@@ -958,7 +958,7 @@ describe("buildLine1: left truncation when right is wide", () => {
 
     expect(result.length).toBe(1);
     // Should be truncated to fit width
-    expect(stripTags(result[0]).length).toBeLessThanOrEqual(15);
+    expect(stripTags(result[0]!).length).toBeLessThanOrEqual(15);
   });
 
   it("truncates only left when percentage overlay cannot fit at all", () => {
@@ -986,7 +986,7 @@ describe("buildLine1: left truncation when right is wide", () => {
     // Line 177 path: just truncates left to width
     // With truncation indicator "…", the visible width respects width constraint
     // but string length may be higher due to wide characters and the ellipsis
-    expect(stripTags(result[0]).length).toBe(13);
+    expect(stripTags(result[0]!).length).toBe(13);
   });
 });
 
@@ -1300,7 +1300,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     const line2Stripped = stripTags(line2);
 
     // Left zone: processes text
@@ -1337,7 +1337,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     const line2Stripped = stripTags(line2);
 
     // Center: lens icons
@@ -1365,7 +1365,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2 = result[1];
+    const line2 = result[1]!;
     const line2Stripped = stripTags(line2);
 
     // Left: processes
@@ -1405,9 +1405,9 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
     expect(line2Stripped.indexOf("3 processes")).toBe(0);
-    expect(visibleWidth(result[1])).toBe(120);
+    expect(visibleWidth(result[1]!)).toBe(120);
   });
 
   it("backward compat: only pi-lens → centered, no zai bar", () => {
@@ -1421,10 +1421,10 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
     // Centered: does not start at position 0
     expect(line2Stripped.indexOf("\u2713")).toBeGreaterThan(0);
-    expect(visibleWidth(result[1])).toBe(120);
+    expect(visibleWidth(result[1]!)).toBe(120);
   });
 
   it("backward compat: processes + lens → left+center, no zai bar", () => {
@@ -1442,10 +1442,10 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(120, mockTheme);
 
     expect(result.length).toBe(2);
-    const line2Stripped = stripTags(result[1]);
+    const line2Stripped = stripTags(result[1]!);
     expect(line2Stripped.indexOf("3 processes")).toBe(0);
     expect(result[1]).toContain("[text]prettier");
-    expect(visibleWidth(result[1])).toBe(120);
+    expect(visibleWidth(result[1]!)).toBe(120);
   });
 
   it("backward compat: no statuses → single line, null line 2", () => {
@@ -1482,7 +1482,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     // Use stripTags because mockTheme produces [color] tags that visibleWidth
     // doesn't fully strip when multiple tags are present. Verify content
     // correctness and that stripped content fits within the allotted width.
-    const strippedLine2 = stripTags(result[1]);
+    const strippedLine2 = stripTags(result[1]!);
     expect(strippedLine2.length).toBeLessThanOrEqual(30);
     expect(strippedLine2).toContain("80%");
   });
@@ -1503,6 +1503,6 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(2);
-    expect(visibleWidth(result[1])).toBe(80);
+    expect(visibleWidth(result[1]!)).toBe(80);
   });
 });

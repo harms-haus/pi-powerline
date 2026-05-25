@@ -375,7 +375,7 @@ describe("extension entry point", () => {
 
       getHandler("session_start")({}, ctx);
 
-      const footerFactory = ctx.ui!.setFooter.mock.calls[0][0] as (
+      const footerFactory = ctx.ui!.setFooter.mock.calls[0]![0] as (
         tui: unknown,
         theme: unknown,
         footerData: unknown,
@@ -403,7 +403,7 @@ describe("extension entry point", () => {
 
       getHandler("session_start")({}, ctx);
 
-      const footerFactory = ctx.ui!.setFooter.mock.calls[0][0] as (
+      const footerFactory = ctx.ui!.setFooter.mock.calls[0]![0] as (
         tui: unknown,
         theme: unknown,
         footerData: unknown,
@@ -427,7 +427,7 @@ describe("extension entry point", () => {
 
       getHandler("session_start")({}, ctx);
 
-      const footerFactory = ctx.ui!.setFooter.mock.calls[0][0];
+      const footerFactory = ctx.ui!.setFooter.mock.calls[0]![0];
       const mockTui = { requestRender: vi.fn() };
       const mockTheme = { fg: vi.fn((_c: string, t: string) => t) };
       let capturedBranchHandler: (() => void) | undefined;
@@ -455,7 +455,7 @@ describe("extension entry point", () => {
 
       getHandler("session_start")({}, ctx);
 
-      const widgetFactory = ctx.ui!.setWidget.mock.calls[0][1] as (
+      const widgetFactory = ctx.ui!.setWidget.mock.calls[0]![1] as (
         tui: unknown,
         theme: unknown,
       ) => { dispose: () => void; invalidate: () => void; render: (w: number) => string[] };

@@ -91,7 +91,7 @@ describe("renderAboveWidget", () => {
     expect(result.length).toBe(1);
     // truncateToWidth limits visible width; with mock theme wrapping, total length may
     // exceed width but visible portion is truncated
-    expect(result[0].length).toBeLessThan(30);
+    expect(result[0]!.length).toBeLessThan(30);
   });
 
   it("shows overflow indicator when items exceed MAX_ACTIVE_ITEMS", () => {
@@ -105,7 +105,7 @@ describe("renderAboveWidget", () => {
     expect(result[10]).toBe("[dim]... +3 more");
     // First 10 lines should contain the items
     for (let i = 0; i < 10; i++) {
-      expect(result[i]).toContain(`item ${i + 1}`);
+      expect(result[i]!).toContain(`item ${i + 1}`);
     }
   });
 
@@ -115,7 +115,7 @@ describe("renderAboveWidget", () => {
     expect(result.length).toBe(1);
     expect(result[0]).toContain("RPIR-7");
     // RPIR is right-aligned: line should start with spaces
-    const stripped = result[0].replace(
+    const stripped = result[0]!.replace(
       /\[dim\]|\[accent\]|\[warning\]|\[success\]|\[error\]|\[muted\]/g,
       "",
     );

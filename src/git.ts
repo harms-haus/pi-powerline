@@ -20,8 +20,8 @@ function parseGitShortstat(output: string): GitDiffStat | null {
   const insertionMatch = trimmed.match(/(\d+) insertion/);
   const deletionMatch = trimmed.match(/(\d+) deletion/);
 
-  const insertions = insertionMatch ? parseInt(insertionMatch[1], 10) : 0;
-  const deletions = deletionMatch ? parseInt(deletionMatch[1], 10) : 0;
+  const insertions = insertionMatch?.[1] ? parseInt(insertionMatch[1], 10) : 0;
+  const deletions = deletionMatch?.[1] ? parseInt(deletionMatch[1], 10) : 0;
 
   return { insertions, deletions };
 }
