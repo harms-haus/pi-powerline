@@ -14,10 +14,19 @@ Then restart pi or run `/reload`.
 
 ### Above the Composer
 
+Top to bottom rendering order:
+
+1. Active todo/task items (one per line, from `pi-til-done`)
+2. **Kanban claimed tasks** — one line per claimed task (from `pi-kanban`)
+3. Progress line — todo/task count on the left, workflow phase on the right
+4. **Kanban summary line** — `[done/total] N claimed, N ready, N blocked`
+
 | Left                                  | Right                                         |
 | ------------------------------------- | --------------------------------------------- |
 | Todo/task count (`📋 6/10`)           | RPIR workflow phase (`🔬 Implementing [2/5]`) |
 | Active todo/task items (one per line) |                                               |
+| Kanban claimed tasks (phase icon, id, title) |                                        |
+| Kanban summary (`[2/4] 2 claimed, 1 ready, 1 blocked`) |                          |
 
 ### Below the Composer (Footer)
 
@@ -106,9 +115,25 @@ Both use structured JSON payloads. If the payload is not valid JSON, the raw str
   - `pi-lint` — configured linter status (clean/dirty)
   - `pi-processes` — active process count
   - `pi-git` — enriched git status (branch, diff stats, file counts)
+  - `kanban` — kanban board status from `pi-kanban` (JSON: `{ total, claimed, ready, blocked, done, claimedTasks: [{ id, title, phase }] }`)
   - `zai-usage` — Z.ai token quota usage (JSON: `{ percentage, resetTimeMs }`)
 - **Smart truncation** — gracefully handles narrow terminals while preserving context warnings
 - **Debounced git polling** — efficient `git diff` updates (debounced 500ms on file changes, immediate on turn end)
+
+### Kanban Rendering Example
+
+When `pi-kanban` is installed and tasks are in progress:
+
+```
+⚙️ [kb-2] Implement endpoints
+👁 [kb-4] Review PR
+[2/4] 2 claimed, 1 ready, 1 blocked
+```
+
+- Claimed tasks show **phase icons**: 🧪 test, ⚙️ implement, 👁 review
+- The summary line is color-coded: claimed = warning, ready = success, blocked = error
+- Only non-zero counts are shown in the summary
+- The kanban section is hidden when all tasks are done
 
 ## Compatibility
 
