@@ -154,24 +154,30 @@ function buildContextDisplay(
   percent: number | null,
   theme: Theme,
 ): string {
-  let contextDisplay: string;
-  if (tokens !== null && percent !== null) {
-    contextDisplay = `${formatTokens(tokens)}/${formatTokens(contextWindow)} ${percent.toFixed(1)}%`;
-  } else if (tokens !== null) {
-    contextDisplay = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
+  // Build the token/window portion (never colored)
+  let tokenPart: string;
+  if (tokens !== null) {
+    tokenPart = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
   } else {
-    contextDisplay = `?/${formatTokens(contextWindow)}`;
+    tokenPart = `?/${formatTokens(contextWindow)}`;
   }
 
-  if (percent !== null) {
-    if (percent > CONTEXT_CRITICAL_THRESHOLD) {
-      return theme.fg("error", contextDisplay);
-    }
-    if (percent > CONTEXT_WARNING_THRESHOLD) {
-      return theme.fg("warning", contextDisplay);
-    }
+  if (percent === null) {
+    return tokenPart;
   }
-  return contextDisplay;
+
+  // Build the percentage portion (conditionally colored)
+  const percentStr = percent.toFixed(1) + "%";
+  let coloredPercent: string;
+  if (percent > CONTEXT_CRITICAL_THRESHOLD) {
+    coloredPercent = theme.fg("error", percentStr);
+  } else if (percent > CONTEXT_WARNING_THRESHOLD) {
+    coloredPercent = theme.fg("warning", percentStr);
+  } else {
+    coloredPercent = percentStr;
+  }
+
+  return tokenPart + " " + coloredPercent;
 }
 
 function buildModelDisplay(
@@ -205,30 +211,8 @@ function buildModelDisplay(
 
 // ─── Line 1 Composition ─────────────────────────────────────────
 
-function buildLine1(
-  left: string,
-  contextStr: string,
-  modelStr: string,
-  percent: number | null,
-  width: number,
-  theme: Theme,
-): string {
+function buildLine1(left: string, contextStr: string, modelStr: string, width: number): string {
   const right = contextStr + " " + modelStr;
-
-  if (percent !== null && percent > CONTEXT_WARNING_THRESHOLD) {
-    const pct = percent;
-    const minRight =
-      pct > CONTEXT_CRITICAL_THRESHOLD
-        ? theme.fg("error", `${pct.toFixed(0)}%`)
-        : theme.fg("warning", `${pct.toFixed(0)}%`);
-    const minRightW = visibleWidth(minRight);
-    if (minRightW + 2 <= width) {
-      const truncatedLeft = truncateToWidth(left, width - minRightW - 2, "…");
-      const truncatedLeftW = visibleWidth(truncatedLeft);
-      return truncatedLeft + " ".repeat(width - truncatedLeftW - minRightW) + minRight;
-    }
-    return truncateToWidth(left, width, "…");
-  }
   return alignLeftRight(left, right, width);
 }
 
@@ -548,7 +532,7 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
       );
     }
 
-    const line1 = buildLine1(left, contextStr, modelStr, ctx.percent, width, theme);
+    const line1 = buildLine1(left, contextStr, modelStr, width);
     const line2 = buildLine2(width, theme, statuses);
 
     return line2 ? [line1, line2] : [line1];

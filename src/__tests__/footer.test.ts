@@ -183,10 +183,15 @@ describe("renderFooterLine", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(1);
-    // The line should contain error-colored percentage
-    expect(result[0]).toContain("[error]");
     const stripped = stripTags(result[0]!);
-    expect(stripped).toContain("96%");
+    // Full context info is present (not replaced by compact overlay)
+    expect(stripped).toContain("122k/128k");
+    expect(stripped).toContain("95.5%");
+    // Model name is present
+    expect(stripped).toContain("claude-opus-4");
+    // Error color wraps only the percentage, not the token counts
+    expect(result[0]).toContain("[error]");
+    expect(result[0]!.indexOf("122k")).toBeLessThan(result[0]!.indexOf("[error]"));
   });
 
   it("uses warning color when context usage > 70%", () => {
@@ -209,10 +214,15 @@ describe("renderFooterLine", () => {
     const result = renderFooterLine(80, mockTheme);
 
     expect(result.length).toBe(1);
-    // The line should contain warning-colored percentage
-    expect(result[0]).toContain("[warning]");
     const stripped = stripTags(result[0]!);
-    expect(stripped).toContain("75%");
+    // Full context info is present (not replaced by compact overlay)
+    expect(stripped).toContain("96k/128k");
+    expect(stripped).toContain("75.3%");
+    // Model name is present
+    expect(stripped).toContain("gpt-4o");
+    // Warning color wraps only the percentage, not the token counts
+    expect(result[0]).toContain("[warning]");
+    expect(result[0]!.indexOf("96k")).toBeLessThan(result[0]!.indexOf("[warning]"));
   });
 
   it("truncates output when width is very narrow", () => {
@@ -989,15 +999,19 @@ describe("buildLine1: left truncation when right is wide", () => {
     };
     (state as Record<string, unknown>).currentCwd = "/home/testuser/some/deeply/nested/path";
 
-    // With our mock theme, the minRight is like [warning]75% which has
-    // visibleWidth of ~14 chars, so width=5 should fail minRightW + 2 <= width
-    const result = renderFooterLine(5, mockTheme);
+    // percent > 70 triggers the warning overlay path when width allows it
+    // At width=20, minRightW (visibleWidth of "[warning]75%" = 12) + 2 <= 20
+    // so the buggy code enters the overlay and shows only "75%"
+    // The fixed code uses alignLeftRight which truncates the right side at this width
+    const result = renderFooterLine(20, mockTheme);
 
     expect(result.length).toBe(1);
-    // Line 177 path: just truncates left to width
-    // With truncation indicator "…", the visible width respects width constraint
-    // but string length may be higher due to wide characters and the ellipsis
-    expect(stripTags(result[0]!).length).toBe(13);
+    // Output respects terminal width constraint — normal alignLeftRight truncation
+    expect(visibleWidth(result[0]!)).toBeLessThanOrEqual(20);
+    // At this width, alignLeftRight truncates the right side entirely
+    // The output should not contain the percentage overlay
+    const stripped = stripTags(result[0]!);
+    expect(stripped).not.toContain("75%");
   });
 });
 
