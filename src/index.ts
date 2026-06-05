@@ -19,6 +19,7 @@ import {
   resetState,
 } from "./state";
 import { refreshGitDiff, debouncedRefreshGitDiff, clearGitTimer } from "./git";
+import { invalidateCompressionCache } from "./path-compression.js";
 import { renderFooterLine } from "./footer";
 import { renderAboveWidget } from "./above-widget";
 
@@ -36,6 +37,7 @@ function setupUI(ctx: ExtensionContext): void {
       dispose() {
         unsubBranch();
         clearGitTimer();
+        invalidateCompressionCache();
       },
       invalidate() {},
       render(w: number): string[] {
@@ -68,6 +70,7 @@ export default function (pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     if (!safeUpdateCtx(ctx)) return;
     clearGitTimer();
+    invalidateCompressionCache();
     setupUI(ctx);
     void refreshGitDiff();
   });

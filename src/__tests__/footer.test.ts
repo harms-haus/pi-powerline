@@ -66,10 +66,19 @@ vi.mock("../helpers", () => ({
   },
 }));
 
+// Mock the path-compression module
+let mockCompressPathToWidth = (path: string, _maxWidth: number): string => path;
+vi.mock("../path-compression", () => ({
+  compressPathToWidth: (...args: unknown[]) =>
+    mockCompressPathToWidth(...(args as [string, number])),
+  invalidateCompressionCache: vi.fn(),
+}));
+
 import * as state from "../state";
 import * as git from "../git";
 import {
   renderFooterLine,
+  parseCwdStatus,
   parseZaiUsageStatus,
   formatResetTime,
   formatPercentage,
@@ -85,6 +94,8 @@ beforeEach(() => {
   (state as Record<string, unknown>).api = undefined;
   (state as Record<string, unknown>).footerDataProvider = undefined;
   (git as Record<string, unknown>).gitChanges = null;
+  // Reset path compression mock to identity
+  mockCompressPathToWidth = (path: string, _maxWidth: number): string => path;
 });
 
 afterEach(() => {
@@ -1504,5 +1515,197 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
 
     expect(result.length).toBe(2);
     expect(visibleWidth(result[1]!)).toBe(80);
+  });
+});
+
+// ─── parseCwdStatus ──────────────────────────────────────────────
+
+describe("parseCwdStatus", () => {
+  it('returns { cwd } for valid JSON {"cwd":"~/projects/foo"}', () => {
+    const input = JSON.stringify({ cwd: "~/projects/foo" });
+    expect(parseCwdStatus(input)).toEqual({ cwd: "~/projects/foo" });
+  });
+
+  it("returns null for undefined", () => {
+    expect(parseCwdStatus(undefined)).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(parseCwdStatus("")).toBeNull();
+  });
+
+  it("returns null for malformed JSON", () => {
+    expect(parseCwdStatus("not-json")).toBeNull();
+  });
+
+  it("returns null for JSON without cwd key", () => {
+    const input = JSON.stringify({ path: "/something" });
+    expect(parseCwdStatus(input)).toBeNull();
+  });
+
+  it("returns null when cwd is not a string", () => {
+    const input = JSON.stringify({ cwd: 123 });
+    expect(parseCwdStatus(input)).toBeNull();
+  });
+
+  it("returns { cwd } for full absolute path", () => {
+    const input = JSON.stringify({ cwd: "/home/user/projects" });
+    expect(parseCwdStatus(input)).toEqual({ cwd: "/home/user/projects" });
+  });
+});
+
+// ─── Pi-CWD Effective CWD Integration ────────────────────────────
+
+describe("renderFooterLine with pi-cwd effective CWD", () => {
+  it("uses pi-cwd effective CWD when status is present", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () =>
+        new Map<string, string>([["cwd", JSON.stringify({ cwd: "~/different/path" })]]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    expect(stripped).toContain("~/different/path");
+    // Should NOT contain the default currentCwd value
+    expect(stripped).not.toContain("~/project");
+  });
+
+  it("falls back to currentCwd when pi-cwd status absent", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () => new Map<string, string>(),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    // currentCwd is /home/testuser/project → shortened to ~/project
+    expect(stripped).toContain("~/project");
+  });
+
+  it("falls back to currentCwd when pi-cwd status is malformed", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () => new Map<string, string>([["cwd", "not-json"]]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    expect(stripped).toContain("~/project");
+  });
+
+  it("falls back to currentCwd when pi-cwd status cwd field is not a string", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      getExtensionStatuses: () => new Map<string, string>([["cwd", JSON.stringify({ cwd: 42 })]]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    expect(stripped).toContain("~/project");
+  });
+});
+
+// ─── Path Compression Integration ────────────────────────────────
+
+describe("renderFooterLine with path compression", () => {
+  it("long CWD path is compressed at narrow width", () => {
+    (state as Record<string, unknown>).currentCwd =
+      "/home/testuser/very/deeply/nested/directory/structure/path";
+    mockCompressPathToWidth = (_path: string, _maxWidth: number): string => "~/v/d/n/d/s/path";
+
+    const result = renderFooterLine(40, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    expect(stripped).toContain("~/v/d/n/d/s/path");
+  });
+
+  it("short CWD path is not compressed", () => {
+    // currentCwd is ~/project which is short enough for any reasonable width
+    // mockCompressPathToWidth is identity by default
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    expect(stripped).toContain("~/project");
+  });
+
+  it("compression not applied when pi-git status present", () => {
+    const piGitJson = JSON.stringify({
+      cwd: "~/project",
+      branch: "main",
+      insertions: 5,
+      deletions: 2,
+      addedCount: 0,
+      modifiedCount: 1,
+      deletedCount: 0,
+    });
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["cwd", JSON.stringify({ cwd: "~/different/path" })],
+          ["pi-git", piGitJson],
+        ]),
+    };
+    // If compressPathToWidth is called, it would throw
+    mockCompressPathToWidth = (): string => {
+      throw new Error("compressPathToWidth should not be called when pi-git is present");
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    // pi-git display is used (with bullet separators)
+    expect(stripped).toContain("~/project");
+    expect(stripped).toContain("(main)");
+    expect(stripped).toContain("+5");
+    expect(stripped).toContain("-2");
+    // NOT the pi-cwd path
+    expect(stripped).not.toContain("~/different/path");
+  });
+
+  it("pi-cwd + pi-git coexistence", () => {
+    const piGitJson = JSON.stringify({
+      cwd: "~/project",
+      branch: "feature",
+      insertions: 0,
+      deletions: 0,
+      addedCount: 1,
+      modifiedCount: 0,
+      deletedCount: 0,
+    });
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["cwd", JSON.stringify({ cwd: "~/other/path" })],
+          ["pi-git", piGitJson],
+        ]),
+    };
+    mockCompressPathToWidth = (): string => {
+      throw new Error("compressPathToWidth should not be called when pi-git is present");
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    // pi-git wins — uses its own CWD and branch
+    expect(stripped).toContain("~/project");
+    expect(stripped).toContain("(feature)");
+    expect(stripped).toContain("1 new");
+    // NOT the pi-cwd path
+    expect(stripped).not.toContain("~/other/path");
   });
 });

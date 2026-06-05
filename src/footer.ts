@@ -4,6 +4,7 @@ import { currentCwd, currentCtx, api, footerDataProvider } from "./state";
 import { gitChanges, colorCodeGitChanges } from "./git";
 import type { GitDiffStat } from "./git";
 import { alignLeftRight, formatTokens, shortenPath } from "./helpers";
+import { compressPathToWidth } from "./path-compression.js";
 
 type CheckStatus = "pending" | "running" | "clean" | "issues" | "error" | "skipped";
 
@@ -59,6 +60,22 @@ function parsePiGitStatus(raw: string): PiGitStatus | null {
   };
 }
 
+// ─── Cwd Status Parsing ──────────────────────────────────────────
+
+export function parseCwdStatus(raw: string | undefined): { cwd: string } | null {
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const obj = parsed as Record<string, unknown>;
+  if (typeof obj.cwd !== "string") return null;
+  return { cwd: obj.cwd };
+}
+
 // ─── Left Side Builders ──────────────────────────────────────────
 
 function buildFallbackLeftSide(
@@ -72,6 +89,38 @@ function buildFallbackLeftSide(
   if (branch) parts.push(theme.fg("accent", `(${branch})`));
   if (changes) parts.push(colorCodeGitChanges(changes, theme));
   return parts.join(" ");
+}
+
+/**
+ * Build the left side string with CWD path compression.
+ * Resolves base CWD from pi-cwd status or currentCwd,
+ * computes available width, compresses if needed, and
+ * builds the full left-side string directly.
+ */
+function buildCompressedLeftSide(
+  cwdStatus: { cwd: string } | null,
+  branch: string | null,
+  changes: GitDiffStat | null,
+  contextStr: string,
+  modelStr: string,
+  width: number,
+  theme: Theme,
+): string {
+  const baseCwd = cwdStatus?.cwd ?? shortenPath(currentCwd || "");
+
+  const rightStr = contextStr + " " + modelStr;
+  const rightWidth = visibleWidth(rightStr);
+
+  const nonCwdParts: string[] = [];
+  if (branch) nonCwdParts.push(theme.fg("accent", `(${branch})`));
+  if (changes) nonCwdParts.push(colorCodeGitChanges(changes, theme));
+  const nonCwdStr = nonCwdParts.join(" ");
+  const nonCwdWidth = nonCwdParts.length > 0 ? visibleWidth(nonCwdStr) + 1 : 0;
+
+  const maxCwdWidth = Math.max(0, width - rightWidth - 2 - nonCwdWidth);
+  const cwdDisplay = compressPathToWidth(baseCwd, maxCwdWidth);
+
+  return buildFallbackLeftSide(cwdDisplay, branch, changes, theme);
 }
 
 function buildPiGitLeftSide(status: PiGitStatus, theme: Theme): string {
@@ -465,20 +514,13 @@ function collectFooterContext(): FooterContextData {
 
 export function renderFooterLine(width: number, theme: Theme): string[] {
   try {
-    const cwdDisplay = shortenPath(currentCwd || "");
     const branch = footerDataProvider?.getGitBranch() ?? null;
     const statuses = footerDataProvider?.getExtensionStatuses();
 
     const piGitStatusRaw = statuses?.get("pi-git");
     const piGitStatus = piGitStatusRaw ? parsePiGitStatus(piGitStatusRaw) : null;
 
-    let left: string;
-    if (piGitStatus) {
-      left = buildPiGitLeftSide(piGitStatus, theme);
-    } else {
-      left = buildFallbackLeftSide(cwdDisplay, branch, gitChanges, theme);
-    }
-
+    // Collect context data early (needed for width computation in fallback path)
     const ctx = collectFooterContext();
     const contextStr = buildContextDisplay(ctx.tokens, ctx.contextWindow, ctx.percent, theme);
     const modelStr = buildModelDisplay(
@@ -489,6 +531,22 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
       ctx.thinkingLevel,
       theme,
     );
+
+    let left: string;
+    if (piGitStatus) {
+      left = buildPiGitLeftSide(piGitStatus, theme);
+    } else {
+      const cwdStatus = parseCwdStatus(statuses?.get("cwd"));
+      left = buildCompressedLeftSide(
+        cwdStatus,
+        branch,
+        gitChanges,
+        contextStr,
+        modelStr,
+        width,
+        theme,
+      );
+    }
 
     const line1 = buildLine1(left, contextStr, modelStr, ctx.percent, width, theme);
     const line2 = buildLine2(width, theme, statuses);

@@ -1,5 +1,11 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { formatTokens, shortenPath, stripAnsi, alignLeftRight } from "../helpers.js";
+import {
+  formatTokens,
+  shortenPath,
+  stripAnsi,
+  alignLeftRight,
+  shortestUniquePrefix,
+} from "../helpers.js";
 import { visibleWidth } from "@earendil-works/pi-tui";
 
 describe("formatTokens", () => {
@@ -213,5 +219,39 @@ describe("alignLeftRight", () => {
     const result = alignLeftRight("left", "", 10);
     expect(visibleWidth(result)).toBe(10);
     expect(result.startsWith("left")).toBe(true);
+  });
+});
+
+describe("shortestUniquePrefix", () => {
+  it("returns longer prefix when first characters collide", () => {
+    expect(shortestUniquePrefix("Documents", ["Desktop", "Documents", "Downloads"])).toBe("Doc");
+  });
+
+  it("needs longer prefix when first chars collide", () => {
+    expect(shortestUniquePrefix("pi-powerline", ["pi-powerline", "pi-processes"])).toBe("pi-po");
+  });
+
+  it("returns first char when name is unique at first char", () => {
+    expect(shortestUniquePrefix("abc", ["abc", "xyz"])).toBe("a");
+  });
+
+  it("returns first char when only self in siblings", () => {
+    expect(shortestUniquePrefix("only", ["only"])).toBe("o");
+  });
+
+  it("returns first char when siblings is empty", () => {
+    expect(shortestUniquePrefix("anything", [])).toBe("a");
+  });
+
+  it("returns empty string when name is empty", () => {
+    expect(shortestUniquePrefix("", ["a", "b"])).toBe("");
+  });
+
+  it("is case-sensitive", () => {
+    expect(shortestUniquePrefix("abc", ["abc", "Abc"])).toBe("a");
+  });
+
+  it("returns full name when name is prefix of another sibling", () => {
+    expect(shortestUniquePrefix("pi", ["pi", "pi-extra"])).toBe("pi");
   });
 });

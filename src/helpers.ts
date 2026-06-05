@@ -46,3 +46,15 @@ export function alignLeftRight(left: string, right: string, width: number): stri
   // Left alone is too wide: truncate left only
   return truncateToWidth(left, width, "");
 }
+
+export function shortestUniquePrefix(name: string, siblings: string[]): string {
+  if (!name) return "";
+  if (siblings.length === 0) return name.slice(0, 1);
+  for (let len = 1; len <= name.length; len++) {
+    const prefix = name.slice(0, len);
+    if (!siblings.some((s) => s !== name && s.startsWith(prefix))) {
+      return prefix;
+    }
+  }
+  return name;
+}
