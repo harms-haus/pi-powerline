@@ -56,11 +56,16 @@ const extensionDefault = (await import("../index")).default;
 
 function createMockPi(): {
   on: ReturnType<typeof vi.fn>;
+  events: { emit: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn> };
 } {
   return {
     on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
       handlers[event] = handler;
     }),
+    events: {
+      emit: vi.fn(),
+      on: vi.fn(() => vi.fn()),
+    },
   };
 }
 
@@ -364,6 +369,70 @@ describe("extension entry point", () => {
       getHandler("message_end")({}, {});
 
       expect(mockRequestRefresh).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("cwd-change event", () => {
+    it("subscribes to cwd-change during session_start and calls requestRefresh", () => {
+      const pi = createMockPi();
+      extensionDefault(pi as never);
+
+      // Not subscribed at top level — only after session_start
+      expect(pi.events.on).not.toHaveBeenCalled();
+
+      const ctx = createMockCtx(true);
+      getHandler("session_start")({}, ctx);
+
+      expect(pi.events.on).toHaveBeenCalledWith("cwd-change", expect.any(Function));
+
+      const call = pi.events.on.mock.calls.find((c) => c[0] === "cwd-change");
+      const handler = call![1] as () => void;
+      handler();
+
+      expect(mockRequestRefresh).toHaveBeenCalled();
+    });
+
+    it("cleanup unsubscribes from cwd-change", () => {
+      const unsubFn = vi.fn();
+      const pi = createMockPi();
+      pi.events.on.mockReturnValue(unsubFn);
+      extensionDefault(pi as never);
+
+      const ctx = createMockCtx(true);
+      getHandler("session_start")({}, ctx);
+      getHandler("session_shutdown")();
+
+      expect(unsubFn).toHaveBeenCalled();
+    });
+
+    it("re-subscribes on session_start after session_shutdown", () => {
+      const firstUnsub = vi.fn();
+      const secondUnsub = vi.fn();
+      const pi = createMockPi();
+      extensionDefault(pi as never);
+
+      // First session: subscribe with firstUnsub
+      pi.events.on.mockReturnValueOnce(firstUnsub);
+      const ctx1 = createMockCtx(true);
+      getHandler("session_start")({}, ctx1);
+      expect(firstUnsub).not.toHaveBeenCalled();
+
+      // Shutdown: unsubscribe
+      getHandler("session_shutdown")();
+      expect(firstUnsub).toHaveBeenCalled();
+
+      // Second session: subscribe with secondUnsub
+      pi.events.on.mockReturnValueOnce(secondUnsub);
+      const ctx2 = createMockCtx(true);
+      getHandler("session_start")({}, ctx2);
+
+      // The new subscription handler should work
+      const calls = pi.events.on.mock.calls.filter((c) => c[0] === "cwd-change");
+      const latestCall = calls[calls.length - 1]!;
+      const handler = latestCall[1] as () => void;
+      mockRequestRefresh.mockClear();
+      handler();
+      expect(mockRequestRefresh).toHaveBeenCalled();
     });
   });
 

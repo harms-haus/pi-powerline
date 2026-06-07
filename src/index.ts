@@ -59,8 +59,12 @@ function setupUI(ctx: ExtensionContext): void {
   );
 }
 
+let unsubCwdChange: (() => void) | undefined;
+
 function cleanup(): void {
   clearGitTimer();
+  unsubCwdChange?.();
+  unsubCwdChange = undefined;
   resetState();
 }
 
@@ -73,6 +77,10 @@ export default function (pi: ExtensionAPI): void {
     invalidateCompressionCache();
     setupUI(ctx);
     void refreshGitDiff();
+    unsubCwdChange?.();
+    unsubCwdChange = pi.events.on("cwd-change", () => {
+      requestRefresh();
+    });
   });
 
   pi.on("session_tree", (_event, ctx) => {

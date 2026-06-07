@@ -1665,11 +1665,7 @@ describe("renderFooterLine with path compression", () => {
     });
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
-      getExtensionStatuses: () =>
-        new Map<string, string>([
-          ["cwd", JSON.stringify({ cwd: "~/different/path" })],
-          ["pi-git", piGitJson],
-        ]),
+      getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
     };
     // If compressPathToWidth is called, it would throw
     mockCompressPathToWidth = (): string => {
@@ -1685,25 +1681,23 @@ describe("renderFooterLine with path compression", () => {
     expect(stripped).toContain("(main)");
     expect(stripped).toContain("+5");
     expect(stripped).toContain("-2");
-    // NOT the pi-cwd path
-    expect(stripped).not.toContain("~/different/path");
   });
 
-  it("pi-cwd + pi-git coexistence", () => {
+  it("pi-cwd + pi-git coexistence: pi-cwd effective cwd overrides pi-git cwd", () => {
     const piGitJson = JSON.stringify({
-      cwd: "~/project",
+      cwd: "~/original-project",
       branch: "feature",
-      insertions: 0,
-      deletions: 0,
+      insertions: 10,
+      deletions: 5,
       addedCount: 1,
-      modifiedCount: 0,
+      modifiedCount: 2,
       deletedCount: 0,
     });
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => "main",
       getExtensionStatuses: () =>
         new Map<string, string>([
-          ["cwd", JSON.stringify({ cwd: "~/other/path" })],
+          ["cwd", JSON.stringify({ cwd: "~/other-project" })],
           ["pi-git", piGitJson],
         ]),
     };
@@ -1715,11 +1709,76 @@ describe("renderFooterLine with path compression", () => {
 
     expect(result.length).toBe(1);
     const stripped = stripTags(result[0]!);
-    // pi-git wins — uses its own CWD and branch
+    // pi-cwd effective cwd overrides pi-git's cwd
+    expect(stripped).toContain("~/other-project");
+    // pi-git branch and diff info are still shown
+    expect(stripped).toContain("(feature)");
+    expect(stripped).toContain("+10");
+    expect(stripped).toContain("-5");
+    expect(stripped).toContain("1 new");
+    expect(stripped).toContain("2 changed");
+    // NOT the pi-git original cwd
+    expect(stripped).not.toContain("~/original-project");
+  });
+
+  it("pi-git without pi-cwd status uses pi-git's own cwd", () => {
+    const piGitJson = JSON.stringify({
+      cwd: "~/project",
+      branch: "feature",
+      insertions: 0,
+      deletions: 0,
+      addedCount: 1,
+      modifiedCount: 0,
+      deletedCount: 0,
+    });
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () => new Map<string, string>([["pi-git", piGitJson]]),
+    };
+    mockCompressPathToWidth = (): string => {
+      throw new Error("compressPathToWidth should not be called when pi-git is present");
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    // pi-git's own cwd is used when no pi-cwd status present
     expect(stripped).toContain("~/project");
     expect(stripped).toContain("(feature)");
     expect(stripped).toContain("1 new");
-    // NOT the pi-cwd path
-    expect(stripped).not.toContain("~/other/path");
+  });
+
+  it("pi-git with malformed pi-cwd status falls back to pi-git's own cwd", () => {
+    const piGitJson = JSON.stringify({
+      cwd: "~/project",
+      branch: "feature",
+      insertions: 5,
+      deletions: 2,
+      addedCount: 0,
+      modifiedCount: 1,
+      deletedCount: 0,
+    });
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => "main",
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["cwd", "not-json"],
+          ["pi-git", piGitJson],
+        ]),
+    };
+    mockCompressPathToWidth = (): string => {
+      throw new Error("compressPathToWidth should not be called when pi-git is present");
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(1);
+    const stripped = stripTags(result[0]!);
+    // Falls back to pi-git's cwd when pi-cwd status is malformed
+    expect(stripped).toContain("~/project");
+    expect(stripped).toContain("(feature)");
+    expect(stripped).toContain("+5");
+    expect(stripped).toContain("-2");
   });
 });

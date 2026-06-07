@@ -517,10 +517,12 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
     );
 
     let left: string;
+    const cwdStatus = parseCwdStatus(statuses?.get("cwd"));
+
     if (piGitStatus) {
-      left = buildPiGitLeftSide(piGitStatus, theme);
+      const effectivePiGit = cwdStatus ? { ...piGitStatus, cwd: cwdStatus.cwd } : piGitStatus;
+      left = buildPiGitLeftSide(effectivePiGit, theme);
     } else {
-      const cwdStatus = parseCwdStatus(statuses?.get("cwd"));
       left = buildCompressedLeftSide(
         cwdStatus,
         branch,
