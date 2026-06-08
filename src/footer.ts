@@ -279,7 +279,11 @@ export function buildZaiUsageBar(
     bar = "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(BAR_WIDTH - filled);
   }
   const percentColor = percentage > 90 ? "error" : percentage > 70 ? "warning" : "muted";
-  let result = theme.fg("muted", bar) + " " + theme.fg(percentColor, formatPercentage(percentage));
+  let result =
+    theme.fg("muted", "quota ") +
+    theme.fg("muted", bar) +
+    " " +
+    theme.fg(percentColor, formatPercentage(percentage));
   if (resetTimeMs !== undefined && resetTimeMs > 0) {
     result += " " + theme.fg("muted", formatResetTime(resetTimeMs));
   }
@@ -410,7 +414,6 @@ function buildLine2(
   const zaiPayload = parseZaiUsageStatus(statuses.get("zai-usage"));
   if (zaiPayload) {
     const rightPart = buildZaiUsageBar(zaiPayload.percentage, zaiPayload.resetTimeMs, theme);
-    if (!leftPart && !centerPart) return null;
     return buildThreeZoneLine(leftPart, centerPart, rightPart, width);
   }
 

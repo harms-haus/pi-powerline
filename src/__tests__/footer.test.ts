@@ -1403,7 +1403,7 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
 
   // ── 1 zone: zai-usage only ─────────────────────────────────
 
-  it("returns null for zai-usage only (no processes or lens)", () => {
+  it("renders zai-usage bar right-aligned when it is the only status (no processes or lens)", () => {
     (state as Record<string, unknown>).footerDataProvider = {
       getGitBranch: () => null,
       onBranchChange: () => () => {},
@@ -1413,8 +1413,29 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
 
     const result = renderFooterLine(120, mockTheme);
 
-    // No line 2 when only zai-usage present (no left or center content)
-    expect(result.length).toBe(1);
+    expect(result.length).toBe(2);
+    const strippedLine2 = stripTags(result[1]!);
+    expect(strippedLine2).toContain("80%");
+    expect(visibleWidth(result[1]!)).toBe(120);
+    // Right-aligned: line 2 should have leading whitespace before the bar content
+    expect(strippedLine2).toMatch(/^\s+/);
+  });
+
+  it("zai-usage only: bar respects width for narrow terminal (width 30)", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () => new Map<string, string>([["zai-usage", zaiUsage(80)]]),
+    };
+
+    const result = renderFooterLine(30, mockTheme);
+
+    expect(result.length).toBe(2);
+    // Use stripTags().length because mockTheme produces [color] tags that
+    // visibleWidth counts as visible chars (see test-utils.ts).
+    expect(stripTags(result[1]!).length).toBeLessThanOrEqual(30);
+    expect(stripTags(result[1]!)).toContain("80%");
   });
 
   // ── Backward compatibility (no zai-usage) ────────────────────
