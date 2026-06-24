@@ -459,6 +459,10 @@ interface FooterContextData {
   thinkingLevel: string | undefined;
 }
 
+function isStaleError(e: unknown): boolean {
+  return e instanceof Error && e.message.includes("stale");
+}
+
 function collectFooterContext(): FooterContextData {
   const result: FooterContextData = {
     tokens: null,
@@ -473,25 +477,37 @@ function collectFooterContext(): FooterContextData {
 
   if (!currentCtx) return result;
 
-  result.modelRegistry = currentCtx.modelRegistry;
+  // ctx (and its getters like modelRegistry / model / getContextUsage) can throw
+  // a "stale" error during/after session replacement (e.g. `/new`). Degrade
+  // gracefully instead of surfacing an error in the footer.
+  try {
+    result.modelRegistry = currentCtx.modelRegistry;
 
-  const model = currentCtx.model;
-  if (model) {
-    result.contextWindow = model.contextWindow;
-    result.modelId = model.id;
-    result.provider = model.provider;
-    result.hasReasoning = model.reasoning;
-  }
+    const model = currentCtx.model;
+    if (model) {
+      result.contextWindow = model.contextWindow;
+      result.modelId = model.id;
+      result.provider = model.provider;
+      result.hasReasoning = model.reasoning;
+    }
 
-  const usage = currentCtx.getContextUsage();
-  if (usage) {
-    result.tokens = usage.tokens;
-    result.contextWindow = usage.contextWindow;
-    result.percent = usage.percent;
+    const usage = currentCtx.getContextUsage();
+    if (usage) {
+      result.tokens = usage.tokens;
+      result.contextWindow = usage.contextWindow;
+      result.percent = usage.percent;
+    }
+  } catch (e) {
+    if (isStaleError(e)) return result;
+    throw e;
   }
 
   if (api) {
-    result.thinkingLevel = api.getThinkingLevel();
+    try {
+      result.thinkingLevel = api.getThinkingLevel();
+    } catch (e) {
+      if (!isStaleError(e)) throw e;
+    }
   }
 
   return result;

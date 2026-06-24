@@ -61,7 +61,11 @@ export async function refreshGitDiff(): Promise<void> {
       gitChanges = null;
     }
   } catch (error: unknown) {
-    console.error("[pi-powerline] refreshGitDiff error:", error);
+    // ctx/api become stale during session replacement (e.g. `/new`); the next
+    // event will re-trigger a refresh, so stay quiet on stale errors.
+    if (!(error instanceof Error && error.message.includes("stale"))) {
+      console.error("[pi-powerline] refreshGitDiff error:", error);
+    }
     gitChanges = null;
   } finally {
     gitDiffInFlight = false;

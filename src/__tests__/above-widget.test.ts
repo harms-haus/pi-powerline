@@ -105,7 +105,7 @@ describe("renderAboveWidget", () => {
     expect(result[10]).toBe("[dim]... +3 more");
     // First 10 lines should contain the items
     for (let i = 0; i < 10; i++) {
-      expect(result[i]!).toContain(`item ${i + 1}`);
+      expect(result[i]).toContain(`item ${i + 1}`);
     }
   });
 
