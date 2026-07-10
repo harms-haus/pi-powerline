@@ -20,6 +20,16 @@ interface ZaiUsagePayload {
   resetTimeMs?: number;
 }
 
+interface CodexUsageWindow {
+  percentage: number;
+  resetTimeMs?: number;
+}
+
+interface CodexUsagePayload {
+  fiveHour: CodexUsageWindow;
+  weekly: CodexUsageWindow;
+}
+
 const CONTEXT_WARNING_THRESHOLD = 70;
 const CONTEXT_CRITICAL_THRESHOLD = 90;
 
@@ -261,24 +271,42 @@ export function formatPercentage(pct: number): string {
   return pct.toFixed(1) + "%";
 }
 
+/**
+ * Build the raw progress-bar characters for a consumed-quota percentage.
+ * The bar fills left-to-right as the consumed percentage grows. Width is
+ * parameterized so both the single ZAI bar (width 12) and the dual Codex
+ * bars can share identical fill logic.
+ */
+function buildProgressBarChars(percentage: number, barWidth: number): string {
+  const filled = Math.max(0, Math.min(barWidth, Math.round((percentage / 100) * barWidth)));
+  if (percentage === 0) {
+    return "\u2500".repeat(barWidth);
+  }
+  if (percentage >= 100) {
+    return "\u2501".repeat(barWidth);
+  }
+  if (filled === 0) {
+    return "\u2578" + "\u2500".repeat(barWidth - 1);
+  }
+  return "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(barWidth - filled);
+}
+
+/**
+ * Shared consumed-quota color thresholds used by both ZAI and Codex bars:
+ * > 90 → error, > 70 → warning, otherwise muted.
+ */
+function quotaPercentColor(percentage: number): "error" | "warning" | "muted" {
+  return percentage > 90 ? "error" : percentage > 70 ? "warning" : "muted";
+}
+
 export function buildZaiUsageBar(
   percentage: number,
   resetTimeMs: number | undefined,
   theme: Theme,
 ): string {
   const BAR_WIDTH = 12;
-  const filled = Math.max(0, Math.min(BAR_WIDTH, Math.round((percentage / 100) * BAR_WIDTH)));
-  let bar: string;
-  if (percentage === 0) {
-    bar = "\u2500".repeat(BAR_WIDTH);
-  } else if (percentage >= 100) {
-    bar = "\u2501".repeat(BAR_WIDTH);
-  } else if (filled === 0) {
-    bar = "\u2578" + "\u2500".repeat(BAR_WIDTH - 1);
-  } else {
-    bar = "\u2501".repeat(filled - 1) + "\u2578" + "\u2500".repeat(BAR_WIDTH - filled);
-  }
-  const percentColor = percentage > 90 ? "error" : percentage > 70 ? "warning" : "muted";
+  const bar = buildProgressBarChars(percentage, BAR_WIDTH);
+  const percentColor = quotaPercentColor(percentage);
   let result =
     theme.fg("muted", "quota ") +
     theme.fg("muted", bar) +
@@ -288,6 +316,126 @@ export function buildZaiUsageBar(
     result += " " + theme.fg("muted", formatResetTime(resetTimeMs));
   }
   return result;
+}
+
+// ─── Codex Usage (5h / 7d consumed-quota bars) ──────────────────
+
+export function parseCodexUsageStatus(raw: string | undefined): CodexUsagePayload | null {
+  if (raw === undefined || raw === "") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const obj = parsed as Record<string, unknown>;
+  const fiveHour = parseCodexUsageWindow(obj.fiveHour);
+  const weekly = parseCodexUsageWindow(obj.weekly);
+  if (!fiveHour || !weekly) return null;
+  return { fiveHour, weekly };
+}
+
+function parseCodexUsageWindow(value: unknown): CodexUsageWindow | null {
+  if (typeof value !== "object" || value === null) return null;
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.percentage !== "number" || !isFinite(obj.percentage)) return null;
+  if (obj.percentage < 0) return null;
+  const percentage = obj.percentage;
+  let resetTimeMs: number | undefined;
+  if (obj.resetTimeMs !== undefined) {
+    if (typeof obj.resetTimeMs !== "number") return null;
+    resetTimeMs = obj.resetTimeMs;
+  }
+  return { percentage, resetTimeMs };
+}
+
+/**
+ * A single labeled consumed-quota segment (e.g. "5h \u2501\u2501\u2578\u2500 24% 1h 30m").
+ * Returns both the themed string and its exact visible (tag-stripped) width so
+ * the caller can lay out two windows within a width budget without relying on
+ * the ANSI-aware visibleWidth() (which over-counts mock theme tags in tests).
+ */
+function buildCodexWindowSegment(
+  window: CodexUsageWindow,
+  label: string,
+  barWidth: number,
+  showReset: boolean,
+  theme: Theme,
+): { text: string; width: number } {
+  const pctStr = formatPercentage(window.percentage);
+  const color = quotaPercentColor(window.percentage);
+
+  let text: string;
+  let width: number;
+  if (barWidth > 0) {
+    const bar = buildProgressBarChars(window.percentage, barWidth);
+    text = theme.fg("muted", label + " ") + theme.fg("muted", bar) + " " + theme.fg(color, pctStr);
+    width = label.length + 1 + barWidth + 1 + pctStr.length;
+  } else {
+    text = theme.fg("muted", label + " ") + theme.fg(color, pctStr);
+    width = label.length + 1 + pctStr.length;
+  }
+
+  if (showReset && window.resetTimeMs !== undefined && window.resetTimeMs > 0) {
+    const resetStr = formatResetTime(window.resetTimeMs);
+    if (resetStr !== "") {
+      text += " " + theme.fg("muted", resetStr);
+      width += 1 + resetStr.length;
+    }
+  }
+  return { text, width };
+}
+
+/**
+ * Build a width-safe dual consumed-quota bar for the Codex 5-hour and weekly
+ * (7-day) windows. The two windows are separated by two spaces. Rendering
+ * degrades gracefully as `maxWidth` shrinks: first reset times are dropped,
+ * then the bar width is reduced toward 0, and finally the bars are omitted
+ * entirely (labels + percentages only). The returned visible width never
+ * exceeds `maxWidth`.
+ */
+export function buildCodexUsageBar(
+  fiveHour: CodexUsageWindow,
+  weekly: CodexUsageWindow,
+  theme: Theme,
+  maxWidth: number,
+): string {
+  const MAX_BAR_WIDTH = 8;
+  const SEP = "  ";
+  const budget = Math.max(0, maxWidth);
+
+  const join = (a: { text: string; width: number }, b: { text: string; width: number }): string =>
+    a.text + SEP + b.text;
+
+  // 1. Full: bars + percentages + reset countdowns, shrinking bar width.
+  for (let barWidth = MAX_BAR_WIDTH; barWidth >= 1; barWidth--) {
+    const a = buildCodexWindowSegment(fiveHour, "5h", barWidth, true, theme);
+    const b = buildCodexWindowSegment(weekly, "7d", barWidth, true, theme);
+    if (a.width + SEP.length + b.width <= budget) return join(a, b);
+  }
+
+  // 2. Drop reset countdowns, keep shrinking bars.
+  for (let barWidth = MAX_BAR_WIDTH; barWidth >= 1; barWidth--) {
+    const a = buildCodexWindowSegment(fiveHour, "5h", barWidth, false, theme);
+    const b = buildCodexWindowSegment(weekly, "7d", barWidth, false, theme);
+    if (a.width + SEP.length + b.width <= budget) return join(a, b);
+  }
+
+  // 3. No bars: labels + percentages (with reset if it fits).
+  const aReset = buildCodexWindowSegment(fiveHour, "5h", 0, true, theme);
+  const bReset = buildCodexWindowSegment(weekly, "7d", 0, true, theme);
+  if (aReset.width + SEP.length + bReset.width <= budget) return join(aReset, bReset);
+
+  // 4. No bars, no reset: labels + percentages only.
+  const aMin = buildCodexWindowSegment(fiveHour, "5h", 0, false, theme);
+  const bMin = buildCodexWindowSegment(weekly, "7d", 0, false, theme);
+  const minimal = join(aMin, bMin);
+  if (aMin.width + SEP.length + bMin.width <= budget) return minimal;
+
+  // 5. Last resort: truncate to the budget. truncateToWidth is ANSI-aware in
+  // production; this branch is only reachable at extremely narrow widths.
+  return truncateToWidth(minimal, budget, "");
 }
 
 // ─── Line 2 Builders ─────────────────────────────────────────────
@@ -414,6 +562,19 @@ function buildLine2(
   const zaiPayload = parseZaiUsageStatus(statuses.get("zai-usage"));
   if (zaiPayload) {
     const rightPart = buildZaiUsageBar(zaiPayload.percentage, zaiPayload.resetTimeMs, theme);
+    return buildThreeZoneLine(leftPart, centerPart, rightPart, width);
+  }
+
+  // Check for Codex usage status (5h / 7d consumed-quota bars)
+  const codexPayload = parseCodexUsageStatus(statuses.get("codex-usage"));
+  if (codexPayload) {
+    // Reserve the 2-char gap so the right zone never overflows the line.
+    const rightPart = buildCodexUsageBar(
+      codexPayload.fiveHour,
+      codexPayload.weekly,
+      theme,
+      Math.max(0, width - 2),
+    );
     return buildThreeZoneLine(leftPart, centerPart, rightPart, width);
   }
 

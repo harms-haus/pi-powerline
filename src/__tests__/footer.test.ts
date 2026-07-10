@@ -80,9 +80,11 @@ import {
   renderFooterLine,
   parseCwdStatus,
   parseZaiUsageStatus,
+  parseCodexUsageStatus,
   formatResetTime,
   formatPercentage,
   buildZaiUsageBar,
+  buildCodexUsageBar,
 } from "../footer";
 
 import { mockTheme, stripTags } from "./test-utils.js";
@@ -1550,6 +1552,420 @@ describe("buildLine2 with ZAI usage (3-zone layout)", () => {
 
     expect(result.length).toBe(2);
     expect(visibleWidth(result[1]!)).toBe(80);
+  });
+});
+
+// ─── Codex Usage (5h / 7d consumed-quota bars) ───────────────────
+
+describe("parseCodexUsageStatus", () => {
+  it("returns parsed payload for valid JSON with both windows and resetTimeMs", () => {
+    const input = JSON.stringify({
+      fiveHour: { percentage: 45.7, resetTimeMs: 1700000000000 },
+      weekly: { percentage: 62, resetTimeMs: 1700000100000 },
+    });
+    expect(parseCodexUsageStatus(input)).toEqual({
+      fiveHour: { percentage: 45.7, resetTimeMs: 1700000000000 },
+      weekly: { percentage: 62, resetTimeMs: 1700000100000 },
+    });
+  });
+
+  it("returns parsed payload when windows omit resetTimeMs", () => {
+    const input = JSON.stringify({
+      fiveHour: { percentage: 80 },
+      weekly: { percentage: 30 },
+    });
+    expect(parseCodexUsageStatus(input)).toEqual({
+      fiveHour: { percentage: 80, resetTimeMs: undefined },
+      weekly: { percentage: 30, resetTimeMs: undefined },
+    });
+  });
+
+  it("returns null for undefined input", () => {
+    expect(parseCodexUsageStatus(undefined)).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(parseCodexUsageStatus("")).toBeNull();
+  });
+
+  it("returns null for malformed JSON", () => {
+    expect(parseCodexUsageStatus("not-json")).toBeNull();
+  });
+
+  it("returns null when fiveHour window is missing", () => {
+    const input = JSON.stringify({ weekly: { percentage: 50 } });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null when weekly window is missing", () => {
+    const input = JSON.stringify({ fiveHour: { percentage: 50 } });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null when a window percentage is missing", () => {
+    const input = JSON.stringify({
+      fiveHour: { resetTimeMs: 1000 },
+      weekly: { percentage: 50 },
+    });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null when a window percentage is NaN", () => {
+    const input = JSON.stringify({
+      fiveHour: { percentage: NaN },
+      weekly: { percentage: 50 },
+    });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null when a window percentage is Infinity", () => {
+    const input = JSON.stringify({
+      fiveHour: { percentage: Infinity },
+      weekly: { percentage: 50 },
+    });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null for negative percentage", () => {
+    const input = JSON.stringify({
+      fiveHour: { percentage: -5 },
+      weekly: { percentage: 50 },
+    });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+
+  it("returns null when resetTimeMs is not a number", () => {
+    const input = JSON.stringify({
+      fiveHour: { percentage: 50, resetTimeMs: "soon" },
+      weekly: { percentage: 50 },
+    });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+
+  it("returns payload for over-quota percentages (> 100)", () => {
+    const input = JSON.stringify({
+      fiveHour: { percentage: 120 },
+      weekly: { percentage: 200 },
+    });
+    expect(parseCodexUsageStatus(input)).toEqual({
+      fiveHour: { percentage: 120, resetTimeMs: undefined },
+      weekly: { percentage: 200, resetTimeMs: undefined },
+    });
+  });
+
+  it("returns null when root is not an object", () => {
+    expect(parseCodexUsageStatus(JSON.stringify([1, 2, 3]))).toBeNull();
+  });
+
+  it("returns null when a window is not an object", () => {
+    const input = JSON.stringify({ fiveHour: 50, weekly: { percentage: 50 } });
+    expect(parseCodexUsageStatus(input)).toBeNull();
+  });
+});
+
+describe("buildCodexUsageBar", () => {
+  it("renders both 5h and 7d windows with labels, bars, and percentages at wide width", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const result = buildCodexUsageBar(
+      { percentage: 50, resetTimeMs: 1_000_000 + 45 * 60 * 1000 },
+      { percentage: 60, resetTimeMs: 1_000_000 + (2 * 3600 + 15 * 60) * 1000 },
+      mockTheme,
+      120,
+    );
+    const stripped = stripTags(result);
+    // Both labels present
+    expect(stripped).toContain("5h");
+    expect(stripped).toContain("7d");
+    // Both percentages
+    expect(stripped).toContain("50%");
+    expect(stripped).toContain("60%");
+    // Both reset countdowns are retained at wide width
+    expect(stripped).toContain("45m");
+    expect(stripped).toContain("2h 15m");
+    // Two distinct windows separated by two spaces
+    expect(stripped).toContain("  ");
+    vi.useRealTimers();
+  });
+
+  it("consumed bar fills left-to-right: higher percentage fills more from the left", () => {
+    const low = stripTags(
+      buildCodexUsageBar({ percentage: 20 }, { percentage: 20 }, mockTheme, 120),
+    );
+    const high = stripTags(
+      buildCodexUsageBar({ percentage: 80 }, { percentage: 80 }, mockTheme, 120),
+    );
+    // 20% at barWidth 8: filled=2 → "━╸──────"
+    expect(low).toContain("\u2501\u2578" + "\u2500".repeat(6));
+    // 80% at barWidth 8: filled=6 → "━━━━━╸──"
+    expect(high).toContain("\u2501".repeat(5) + "\u2578" + "\u2500".repeat(2));
+    // Heavy fill grows with percentage (consumed-quota direction)
+    const lowHeavy = (low.match(/\u2501/g) || []).length;
+    const highHeavy = (high.match(/\u2501/g) || []).length;
+    expect(highHeavy).toBeGreaterThan(lowHeavy);
+  });
+
+  it("uses muted color for percentages ≤ 70 (both windows)", () => {
+    const result = buildCodexUsageBar({ percentage: 50 }, { percentage: 70 }, mockTheme, 120);
+    expect(result).toContain("[muted]50%");
+    expect(result).toContain("[muted]70%");
+  });
+
+  it("uses warning color for percentages > 70 and ≤ 90", () => {
+    const result = buildCodexUsageBar({ percentage: 75 }, { percentage: 90 }, mockTheme, 120);
+    expect(result).toContain("[warning]75%");
+    expect(result).toContain("[warning]90%");
+  });
+
+  it("uses error color for percentages > 90", () => {
+    const result = buildCodexUsageBar({ percentage: 91 }, { percentage: 100 }, mockTheme, 120);
+    expect(result).toContain("[error]91%");
+    expect(result).toContain("[error]100%");
+  });
+
+  it("applies independent threshold colors per window", () => {
+    // 5h warning, 7d error
+    const result = buildCodexUsageBar({ percentage: 80 }, { percentage: 95 }, mockTheme, 120);
+    expect(result).toContain("[warning]80%");
+    expect(result).toContain("[error]95%");
+  });
+
+  it("bar is always muted regardless of percentage color", () => {
+    const result = buildCodexUsageBar({ percentage: 95 }, { percentage: 95 }, mockTheme, 120);
+    expect(result).toContain("[muted]");
+    expect(result).toContain("[error]95%");
+  });
+
+  it("includes formatted reset countdowns when resetTimeMs is set (wide width)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const result = buildCodexUsageBar(
+      { percentage: 60, resetTimeMs: 1_000_000 + 45 * 60 * 1000 },
+      { percentage: 60, resetTimeMs: 1_000_000 + 30 * 1000 },
+      mockTheme,
+      120,
+    );
+    const stripped = stripTags(result);
+    expect(stripped).toContain("45m");
+    expect(stripped).toContain("<1m");
+    vi.useRealTimers();
+  });
+
+  it("omits reset suffix when resetTimeMs is undefined", () => {
+    const result = buildCodexUsageBar({ percentage: 60 }, { percentage: 60 }, mockTheme, 120);
+    const stripped = stripTags(result);
+    expect(stripped).not.toContain("m");
+    expect(stripped).toContain("60%");
+  });
+
+  it("omits reset suffix when resetTimeMs is in the past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const result = buildCodexUsageBar(
+      { percentage: 60, resetTimeMs: 1_000_000 - 5000 },
+      { percentage: 60, resetTimeMs: 1_000_000 - 5000 },
+      mockTheme,
+      120,
+    );
+    const stripped = stripTags(result);
+    expect(stripped).not.toMatch(/\d+m/);
+    expect(stripped).toContain("60%");
+    vi.useRealTimers();
+  });
+
+  it("renders full-width bars (barWidth 8) at wide width", () => {
+    const result = buildCodexUsageBar({ percentage: 50 }, { percentage: 60 }, mockTheme, 120);
+    const stripped = stripTags(result);
+    // 50% barWidth 8: filled=4 → "━━━╸────"
+    expect(stripped).toContain("\u2501".repeat(3) + "\u2578" + "\u2500".repeat(4));
+    // 60% barWidth 8: filled=5 → "━━━━╸───"
+    expect(stripped).toContain("\u2501".repeat(4) + "\u2578" + "\u2500".repeat(3));
+    expect(stripped.length).toBeLessThanOrEqual(120);
+  });
+
+  it("shrinks bar width as maxWidth decreases (barWidth 4)", () => {
+    const result = buildCodexUsageBar({ percentage: 50 }, { percentage: 60 }, mockTheme, 24);
+    const stripped = stripTags(result);
+    // barWidth 4: 50% → "━╸──", total analytic width = 24
+    expect(stripped).toContain("\u2501\u2578\u2500\u2500");
+    expect(stripped.length).toBe(24);
+    expect(stripped).toContain("5h");
+    expect(stripped).toContain("7d");
+  });
+
+  it("drops bars entirely at narrow width, keeping labels + percentages", () => {
+    const result = buildCodexUsageBar({ percentage: 50 }, { percentage: 60 }, mockTheme, 14);
+    const stripped = stripTags(result);
+    // minimal: "5h 50%  7d 60%" = 14 chars
+    expect(stripped.length).toBe(14);
+    expect(stripped).toContain("5h 50%");
+    expect(stripped).toContain("7d 60%");
+    expect(stripped).not.toContain("\u2501");
+    expect(stripped).not.toContain("\u2500");
+  });
+
+  it("drops reset countdowns before bars when maxWidth is constrained", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const result = buildCodexUsageBar(
+      { percentage: 50, resetTimeMs: 1_000_000 + 45 * 60 * 1000 },
+      { percentage: 60, resetTimeMs: 1_000_000 + 45 * 60 * 1000 },
+      mockTheme,
+      24,
+    );
+    const stripped = stripTags(result);
+    // Resets dropped, bars retained, fits within budget
+    expect(stripped).not.toContain("45m");
+    expect(stripped).toContain("50%");
+    expect(stripped).toContain("60%");
+    expect(stripped).toContain("\u2501");
+    expect(stripped.length).toBe(24);
+    vi.useRealTimers();
+  });
+
+  it("returns empty string at maxWidth 0", () => {
+    expect(buildCodexUsageBar({ percentage: 50 }, { percentage: 60 }, mockTheme, 0)).toBe("");
+  });
+
+  it("does not throw at extremely narrow width (fallback branch)", () => {
+    expect(() =>
+      buildCodexUsageBar({ percentage: 50 }, { percentage: 60 }, mockTheme, 5),
+    ).not.toThrow();
+    const result = buildCodexUsageBar({ percentage: 50 }, { percentage: 60 }, mockTheme, 5);
+    expect(typeof result).toBe("string");
+  });
+});
+
+// ─── buildLine2 with Codex usage (3-zone layout) ─────────────────
+
+describe("buildLine2 with codex-usage (3-zone layout)", () => {
+  const codexUsage = (
+    fiveHourPct: number,
+    weeklyPct: number,
+    fiveHourReset?: number,
+    weeklyReset?: number,
+  ) =>
+    JSON.stringify({
+      fiveHour: { percentage: fiveHourPct, resetTimeMs: fiveHourReset },
+      weekly: { percentage: weeklyPct, resetTimeMs: weeklyReset },
+    });
+
+  const lensClean = () =>
+    JSON.stringify({ prettier: "clean", linters: "clean", lsp: "clean", tsc: "clean" });
+
+  it("renders all 3 zones (processes + lens + codex-usage) at width 120", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["pi-lens", lensClean()],
+          ["codex-usage", codexUsage(80, 30)],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const line2 = result[1]!;
+    const line2Stripped = stripTags(line2);
+
+    // Left zone: processes text (may compress since the dual codex bar is
+    // wider than a single ZAI bar, leaving less room for the left zone)
+    expect(line2Stripped).toContain("3 proc");
+    // Center zone: lens check icons
+    expect(line2).toContain("[success]\u2713[text]prettier");
+    // Right zone: codex 5h / 7d bars
+    expect(line2Stripped).toContain("5h");
+    expect(line2Stripped).toContain("7d");
+    expect(line2Stripped).toContain("80%");
+    expect(line2Stripped).toContain("30%");
+    // Width invariant
+    expect(visibleWidth(line2)).toBe(120);
+  });
+
+  it("renders codex-usage bar right-aligned when it is the only status (no processes or lens)", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () => new Map<string, string>([["codex-usage", codexUsage(80, 30)]]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const strippedLine2 = stripTags(result[1]!);
+    expect(strippedLine2).toContain("5h");
+    expect(strippedLine2).toContain("80%");
+    expect(visibleWidth(result[1]!)).toBe(120);
+    // Right-aligned: leading whitespace before the bar content
+    expect(strippedLine2).toMatch(/^\s+/);
+  });
+
+  it("codex-usage respects width for narrow terminal (width 30)", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () => new Map<string, string>([["codex-usage", codexUsage(80, 30)]]),
+    };
+
+    const result = renderFooterLine(30, mockTheme);
+
+    expect(result.length).toBe(2);
+    // Use stripTags().length because mockTheme produces [color] tags that
+    // visibleWidth counts as visible chars (see test-utils.ts).
+    expect(stripTags(result[1]!).length).toBeLessThanOrEqual(30);
+    expect(stripTags(result[1]!)).toContain("80%");
+  });
+
+  it("codex-usage precedence: zai-usage wins when both are present", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["zai-usage", JSON.stringify({ percentage: 80 })],
+          ["codex-usage", codexUsage(80, 30)],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const stripped = stripTags(result[1]!);
+    // ZAI bar renders (quota label)
+    expect(stripped).toContain("quota");
+    expect(stripped).toContain("80%");
+    // Codex 7d label is NOT rendered
+    expect(stripped).not.toContain("7d");
+  });
+
+  it("backward compat: no usage statuses → original 2-zone behavior, no bars", () => {
+    (state as Record<string, unknown>).footerDataProvider = {
+      getGitBranch: () => null,
+      onBranchChange: () => () => {},
+      getAvailableProviderCount: () => 0,
+      getExtensionStatuses: () =>
+        new Map<string, string>([
+          ["pi-processes", "3 processes"],
+          ["pi-lens", lensClean()],
+        ]),
+    };
+
+    const result = renderFooterLine(120, mockTheme);
+
+    expect(result.length).toBe(2);
+    const stripped = stripTags(result[1]!);
+    expect(stripped).toContain("3 processes");
+    expect(stripped).not.toContain("5h");
+    expect(stripped).not.toContain("7d");
+    expect(stripped).not.toContain("quota");
+    expect(visibleWidth(result[1]!)).toBe(120);
   });
 });
 
