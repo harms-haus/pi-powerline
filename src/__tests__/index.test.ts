@@ -184,6 +184,28 @@ describe("extension entry point", () => {
       // ui is undefined, so setFooter/setWidget won't be called
       expect(ctx.ui).toBeUndefined();
     });
+
+    it("schedules a render after /new replaces the session and initializes its UI", () => {
+      const pi = createMockPi();
+      extensionDefault(pi as never);
+
+      getHandler("session_shutdown")();
+      mockRequestRefresh.mockClear();
+      const replacementCtx = createMockCtx(true);
+
+      getHandler("session_start")({}, replacementCtx);
+
+      expect(mockResetState).toHaveBeenCalled();
+      expect(mockSafeUpdateCtx).toHaveBeenCalledWith(replacementCtx);
+      expect(replacementCtx.ui!.setFooter).toHaveBeenCalled();
+      expect(replacementCtx.ui!.setWidget).toHaveBeenCalled();
+      expect(mockRequestRefresh).toHaveBeenCalledOnce();
+      const refreshOrder = mockRequestRefresh.mock.invocationCallOrder[0]!;
+      expect(mockSafeUpdateCtx.mock.invocationCallOrder[0]).toBeLessThan(refreshOrder);
+      expect(replacementCtx.ui!.setFooter.mock.invocationCallOrder[0]).toBeLessThan(refreshOrder);
+      expect(mockSetTuiRef.mock.invocationCallOrder[0]).toBeLessThan(refreshOrder);
+      expect(replacementCtx.ui!.setWidget.mock.invocationCallOrder[0]).toBeLessThan(refreshOrder);
+    });
   });
 
   describe("session_tree handler", () => {

@@ -638,12 +638,15 @@ function collectFooterContext(): FooterContextData {
 
   if (!currentCtx) return result;
 
-  // ctx (and its getters like modelRegistry / model / getContextUsage) can throw
-  // a "stale" error during/after session replacement (e.g. `/new`). Degrade
-  // gracefully instead of surfacing an error in the footer.
+  // Each context accessor can independently become stale during session
+  // replacement. Keep data already available from the other accessors.
   try {
     result.modelRegistry = currentCtx.modelRegistry;
+  } catch (e) {
+    if (!isStaleError(e)) throw e;
+  }
 
+  try {
     const model = currentCtx.model;
     if (model) {
       result.contextWindow = model.contextWindow;
@@ -651,7 +654,11 @@ function collectFooterContext(): FooterContextData {
       result.provider = model.provider;
       result.hasReasoning = model.reasoning;
     }
+  } catch (e) {
+    if (!isStaleError(e)) throw e;
+  }
 
+  try {
     const usage = currentCtx.getContextUsage();
     if (usage) {
       result.tokens = usage.tokens;
@@ -659,8 +666,7 @@ function collectFooterContext(): FooterContextData {
       result.percent = usage.percent;
     }
   } catch (e) {
-    if (isStaleError(e)) return result;
-    throw e;
+    if (!isStaleError(e)) throw e;
   }
 
   if (api) {

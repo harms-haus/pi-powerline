@@ -81,6 +81,7 @@ export default function (pi: ExtensionAPI): void {
     unsubCwdChange = pi.events.on("cwd-change", () => {
       requestRefresh();
     });
+    requestRefresh();
   });
 
   pi.on("session_tree", (_event, ctx) => {

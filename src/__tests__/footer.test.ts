@@ -898,6 +898,142 @@ describe("buildLine2 center truncation", () => {
   });
 });
 
+describe("collectFooterContext stale accessor isolation", () => {
+  it("keeps model, provider, and usage data when modelRegistry is stale", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      get modelRegistry() {
+        throw new Error("model registry is stale");
+      },
+      model: {
+        id: "replacement-model",
+        provider: "replacement-provider",
+        contextWindow: 200000,
+        reasoning: false,
+      },
+      getContextUsage: () => ({
+        tokens: 50000,
+        contextWindow: 200000,
+        percent: 25,
+      }),
+    };
+
+    const result = renderFooterLine(160, mockTheme);
+    const stripped = stripTags(result[0]!);
+
+    expect(stripped).toContain("50k/200k");
+    expect(stripped).toContain("25.0%");
+    expect(stripped).toContain("(replacement-provider)");
+    expect(stripped).toContain("replacement-model");
+    expect(stripped).not.toContain("?/0");
+    expect(stripped).not.toContain("no-model");
+  });
+
+  it("keeps context usage when the model getter is stale", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      modelRegistry: {
+        getProviderDisplayName: () => "Replacement Provider",
+      },
+      get model() {
+        throw new Error("model is stale");
+      },
+      getContextUsage: () => ({
+        tokens: 64000,
+        contextWindow: 256000,
+        percent: 25,
+      }),
+    };
+
+    const result = renderFooterLine(160, mockTheme);
+    const stripped = stripTags(result[0]!);
+
+    expect(stripped).toContain("64k/256k");
+    expect(stripped).toContain("25.0%");
+    expect(stripped).not.toContain("?/0");
+  });
+
+  it("keeps model context-window and provider data when context usage is stale", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      modelRegistry: {
+        getProviderDisplayName: () => "Replacement Provider",
+      },
+      model: {
+        id: "replacement-model",
+        provider: "replacement-provider",
+        contextWindow: 200000,
+        reasoning: false,
+      },
+      getContextUsage: () => {
+        throw new Error("context usage is stale");
+      },
+    };
+
+    const result = renderFooterLine(160, mockTheme);
+    const stripped = stripTags(result[0]!);
+
+    expect(stripped).toContain("?/200k");
+    expect(stripped).toContain("(Replacement Provider)");
+    expect(stripped).toContain("replacement-model");
+    expect(stripped).not.toContain("?/0");
+    expect(stripped).not.toContain("no-model");
+  });
+
+  it("retains explicit footer error handling for a non-stale modelRegistry failure", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      get modelRegistry() {
+        throw new Error("registry unavailable");
+      },
+      model: {
+        id: "replacement-model",
+        provider: "replacement-provider",
+        contextWindow: 200000,
+      },
+      getContextUsage: () => ({
+        tokens: 50000,
+        contextWindow: 200000,
+        percent: 25,
+      }),
+    };
+
+    expect(renderFooterLine(160, mockTheme)).toEqual(["[powerline error]"]);
+  });
+
+  it("retains explicit footer error handling for a non-stale model failure", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      modelRegistry: {
+        getProviderDisplayName: () => "Replacement Provider",
+      },
+      get model() {
+        throw new Error("model unavailable");
+      },
+      getContextUsage: () => ({
+        tokens: 50000,
+        contextWindow: 200000,
+        percent: 25,
+      }),
+    };
+
+    expect(renderFooterLine(160, mockTheme)).toEqual(["[powerline error]"]);
+  });
+
+  it("retains explicit footer error handling for a non-stale context usage failure", () => {
+    (state as Record<string, unknown>).currentCtx = {
+      modelRegistry: {
+        getProviderDisplayName: () => "Replacement Provider",
+      },
+      model: {
+        id: "replacement-model",
+        provider: "replacement-provider",
+        contextWindow: 200000,
+      },
+      getContextUsage: () => {
+        throw new Error("context usage unavailable");
+      },
+    };
+
+    expect(renderFooterLine(160, mockTheme)).toEqual(["[powerline error]"]);
+  });
+});
+
 describe("collectFooterContext with api thinking level", () => {
   it("includes thinking level from api when set", () => {
     (state as Record<string, unknown>).currentCtx = {

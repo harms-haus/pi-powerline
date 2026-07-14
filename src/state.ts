@@ -21,8 +21,9 @@ function isStaleError(e: unknown): boolean {
 
 export function safeUpdateCtx(ctx: ExtensionContext): boolean {
   try {
+    const cwd = ctx.cwd;
     currentCtx = ctx;
-    currentCwd = ctx.cwd;
+    currentCwd = cwd;
     return true;
   } catch (e) {
     if (isStaleError(e)) return false;

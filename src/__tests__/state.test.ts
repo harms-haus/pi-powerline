@@ -103,6 +103,20 @@ describe("state module", () => {
       expect(result).toBe(false);
     });
 
+    it("keeps the previous context and cwd when a replacement cwd getter is stale", () => {
+      const activeCtx = { cwd: "/home/user/active" } as never;
+      safeUpdateCtx(activeCtx);
+      const staleCandidate = {
+        get cwd() {
+          throw new Error("replacement context is stale");
+        },
+      } as never;
+
+      expect(safeUpdateCtx(staleCandidate)).toBe(false);
+      expect(currentCtx === activeCtx).toBe(true);
+      expect(currentCwd).toBe("/home/user/active");
+    });
+
     it("re-throws non-stale errors", () => {
       const ctx = {
         get cwd() {
