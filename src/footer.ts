@@ -1,6 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { currentCwd, currentCtx, api, footerDataProvider } from "./state";
+import { currentCwd, currentCtx, api, footerDataProvider, footerContextSnapshot } from "./state";
 import { gitChanges, colorCodeGitChanges } from "./git";
 import type { GitDiffStat } from "./git";
 import { alignLeftRight, formatTokens, shortenPath } from "./helpers";
@@ -195,12 +195,13 @@ function buildModelDisplay(
   provider: string | undefined,
   hasReasoning: boolean | undefined,
   modelRegistry: { getProviderDisplayName(provider: string): string } | undefined,
+  capturedProviderName: string | undefined,
   thinkingLevel: string | undefined,
   theme: Theme,
 ): string {
   const modelDisplay = modelId ?? "no-model";
-  let providerName = "";
-  if (provider) {
+  let providerName = capturedProviderName ?? "";
+  if (!providerName && provider) {
     if (modelRegistry) {
       providerName = modelRegistry.getProviderDisplayName(provider);
     } else {
@@ -615,6 +616,7 @@ interface FooterContextData {
   percent: number | null;
   modelId: string | undefined;
   provider: string | undefined;
+  providerName: string | undefined;
   hasReasoning: boolean | undefined;
   modelRegistry: { getProviderDisplayName(provider: string): string } | undefined;
   thinkingLevel: string | undefined;
@@ -624,17 +626,26 @@ function isStaleError(e: unknown): boolean {
   return e instanceof Error && e.message.includes("stale");
 }
 
+function getCapturedFooterContext(): FooterContextData {
+  if (!footerContextSnapshot) {
+    return {
+      tokens: null,
+      contextWindow: 0,
+      percent: null,
+      modelId: undefined,
+      provider: undefined,
+      providerName: undefined,
+      hasReasoning: undefined,
+      modelRegistry: undefined,
+      thinkingLevel: undefined,
+    };
+  }
+
+  return { ...footerContextSnapshot, modelRegistry: undefined };
+}
+
 function collectFooterContext(): FooterContextData {
-  const result: FooterContextData = {
-    tokens: null,
-    contextWindow: 0,
-    percent: null,
-    modelId: undefined,
-    provider: undefined,
-    hasReasoning: undefined,
-    modelRegistry: undefined,
-    thinkingLevel: undefined,
-  };
+  const result = getCapturedFooterContext();
 
   if (!currentCtx) return result;
 
@@ -698,6 +709,7 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
       ctx.provider,
       ctx.hasReasoning,
       ctx.modelRegistry,
+      ctx.providerName,
       ctx.thinkingLevel,
       theme,
     );

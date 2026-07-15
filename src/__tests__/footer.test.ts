@@ -8,6 +8,7 @@ vi.mock("../state", () => ({
   currentCwd: "/home/testuser/project",
   currentCtx: undefined as ExtensionContext | undefined,
   api: undefined,
+  footerContextSnapshot: undefined,
   footerDataProvider: undefined as ReadonlyFooterDataProvider | undefined,
 }));
 
@@ -94,6 +95,7 @@ beforeEach(() => {
   (state as Record<string, unknown>).currentCwd = "/home/testuser/project";
   (state as Record<string, unknown>).currentCtx = undefined;
   (state as Record<string, unknown>).api = undefined;
+  (state as Record<string, unknown>).footerContextSnapshot = undefined;
   (state as Record<string, unknown>).footerDataProvider = undefined;
   (git as Record<string, unknown>).gitChanges = null;
   // Reset path compression mock to identity
@@ -105,6 +107,7 @@ afterEach(() => {
   (state as Record<string, unknown>).currentCwd = undefined;
   (state as Record<string, unknown>).currentCtx = undefined;
   (state as Record<string, unknown>).api = undefined;
+  (state as Record<string, unknown>).footerContextSnapshot = undefined;
   (state as Record<string, unknown>).footerDataProvider = undefined;
   (git as Record<string, unknown>).gitChanges = null;
 });
@@ -899,6 +902,45 @@ describe("buildLine2 center truncation", () => {
 });
 
 describe("collectFooterContext stale accessor isolation", () => {
+  it("renders the session-start snapshot after the retained ctx and api become stale", () => {
+    (state as Record<string, unknown>).footerContextSnapshot = {
+      tokens: 0,
+      contextWindow: 372000,
+      percent: 0,
+      modelId: "gpt-5.6-sol",
+      provider: "openai-codex",
+      providerName: "ChatGPT Plus/Pro (Codex Subscription)",
+      hasReasoning: true,
+      thinkingLevel: "medium",
+    };
+    (state as Record<string, unknown>).currentCtx = {
+      get modelRegistry() {
+        throw new Error("ctx is stale after session replacement");
+      },
+      get model() {
+        throw new Error("ctx is stale after session replacement");
+      },
+      getContextUsage: () => {
+        throw new Error("ctx is stale after session replacement");
+      },
+    };
+    (state as Record<string, unknown>).api = {
+      getThinkingLevel: () => {
+        throw new Error("api is stale after session replacement");
+      },
+    };
+
+    const result = renderFooterLine(180, mockTheme);
+    const stripped = stripTags(result[0]!);
+
+    expect(stripped).toContain("0/372k 0.0%");
+    expect(stripped).toContain("(ChatGPT Plus/Pro (Codex Subscription))");
+    expect(stripped).toContain("gpt-5.6-sol");
+    expect(stripped).toContain("medium");
+    expect(stripped).not.toContain("?/0");
+    expect(stripped).not.toContain("no-model");
+  });
+
   it("keeps model, provider, and usage data when modelRegistry is stale", () => {
     (state as Record<string, unknown>).currentCtx = {
       get modelRegistry() {

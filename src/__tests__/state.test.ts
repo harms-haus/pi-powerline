@@ -3,6 +3,7 @@ import {
   api,
   currentCtx,
   currentCwd,
+  footerContextSnapshot,
   tuiRef,
   footerDataProvider,
   setApi,
@@ -12,6 +13,15 @@ import {
   requestRefresh,
   resetState,
 } from "../state";
+
+function createMockCtx(cwd: string) {
+  return {
+    cwd,
+    model: undefined,
+    modelRegistry: { getProviderDisplayName: vi.fn((provider: string) => provider) },
+    getContextUsage: vi.fn(() => undefined),
+  } as never;
+}
 
 describe("state module", () => {
   beforeEach(() => {
@@ -43,7 +53,7 @@ describe("state module", () => {
 
   describe("setApi", () => {
     it("sets the api variable", () => {
-      const mockApi = { on: vi.fn() } as never;
+      const mockApi = { on: vi.fn(), getThinkingLevel: vi.fn(() => "medium") } as never;
       setApi(mockApi);
       expect(api).toBe(mockApi);
     });
@@ -83,7 +93,7 @@ describe("state module", () => {
 
   describe("safeUpdateCtx", () => {
     it("updates currentCtx and currentCwd, returns true", () => {
-      const ctx = { cwd: "/home/user/project" } as never;
+      const ctx = createMockCtx("/home/user/project");
       const result = safeUpdateCtx(ctx);
       expect(result).toBe(true);
       expect(currentCtx).toBe(ctx);
@@ -104,7 +114,7 @@ describe("state module", () => {
     });
 
     it("keeps the previous context and cwd when a replacement cwd getter is stale", () => {
-      const activeCtx = { cwd: "/home/user/active" } as never;
+      const activeCtx = createMockCtx("/home/user/active");
       safeUpdateCtx(activeCtx);
       const staleCandidate = {
         get cwd() {
@@ -157,8 +167,8 @@ describe("state module", () => {
   describe("resetState", () => {
     it("resets all state variables to undefined", () => {
       // Set everything first
-      setApi({ on: vi.fn() } as never);
-      const ctx = { cwd: "/test" } as never;
+      setApi({ on: vi.fn(), getThinkingLevel: vi.fn(() => "medium") } as never);
+      const ctx = createMockCtx("/test");
       safeUpdateCtx(ctx);
       setTuiRef({ requestRender: vi.fn() } as never);
       setFooterDataProvider({ getGitBranch: vi.fn() } as never);
@@ -167,6 +177,7 @@ describe("state module", () => {
       expect(api).toBeDefined();
       expect(currentCtx).toBeDefined();
       expect(currentCwd).toBe("/test");
+      expect(footerContextSnapshot).toBeDefined();
       expect(tuiRef).toBeDefined();
       expect(footerDataProvider).toBeDefined();
 
@@ -176,6 +187,7 @@ describe("state module", () => {
       // Verify all are undefined (except api — resetState doesn't clear api)
       expect(currentCtx).toBeUndefined();
       expect(currentCwd).toBeUndefined();
+      expect(footerContextSnapshot).toBeUndefined();
       expect(tuiRef).toBeUndefined();
       expect(footerDataProvider).toBeUndefined();
     });
