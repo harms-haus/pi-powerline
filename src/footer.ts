@@ -1,6 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { currentCwd, currentCtx, api, footerDataProvider, footerContextSnapshot } from "./state";
+import { currentCwd, currentCtx, api, footerDataProvider } from "./state";
 import { gitChanges, colorCodeGitChanges } from "./git";
 import type { GitDiffStat } from "./git";
 import { alignLeftRight, formatTokens, shortenPath } from "./helpers";
@@ -195,13 +195,12 @@ function buildModelDisplay(
   provider: string | undefined,
   hasReasoning: boolean | undefined,
   modelRegistry: { getProviderDisplayName(provider: string): string } | undefined,
-  capturedProviderName: string | undefined,
   thinkingLevel: string | undefined,
   theme: Theme,
 ): string {
   const modelDisplay = modelId ?? "no-model";
-  let providerName = capturedProviderName ?? "";
-  if (!providerName && provider) {
+  let providerName = "";
+  if (provider) {
     if (modelRegistry) {
       providerName = modelRegistry.getProviderDisplayName(provider);
     } else {
@@ -616,7 +615,6 @@ interface FooterContextData {
   percent: number | null;
   modelId: string | undefined;
   provider: string | undefined;
-  providerName: string | undefined;
   hasReasoning: boolean | undefined;
   modelRegistry: { getProviderDisplayName(provider: string): string } | undefined;
   thinkingLevel: string | undefined;
@@ -626,39 +624,33 @@ function isStaleError(e: unknown): boolean {
   return e instanceof Error && e.message.includes("stale");
 }
 
-function getCapturedFooterContext(): FooterContextData {
-  if (!footerContextSnapshot) {
-    return {
-      tokens: null,
-      contextWindow: 0,
-      percent: null,
-      modelId: undefined,
-      provider: undefined,
-      providerName: undefined,
-      hasReasoning: undefined,
-      modelRegistry: undefined,
-      thinkingLevel: undefined,
-    };
-  }
+function collectFooterContext(
+  activeCtx: typeof currentCtx = currentCtx,
+  extensionApi: typeof api = api,
+): FooterContextData {
+  const result: FooterContextData = {
+    tokens: null,
+    contextWindow: 0,
+    percent: null,
+    modelId: undefined,
+    provider: undefined,
+    hasReasoning: undefined,
+    modelRegistry: undefined,
+    thinkingLevel: undefined,
+  };
 
-  return { ...footerContextSnapshot, modelRegistry: undefined };
-}
-
-function collectFooterContext(): FooterContextData {
-  const result = getCapturedFooterContext();
-
-  if (!currentCtx) return result;
+  if (!activeCtx) return result;
 
   // Each context accessor can independently become stale during session
   // replacement. Keep data already available from the other accessors.
   try {
-    result.modelRegistry = currentCtx.modelRegistry;
+    result.modelRegistry = activeCtx.modelRegistry;
   } catch (e) {
     if (!isStaleError(e)) throw e;
   }
 
   try {
-    const model = currentCtx.model;
+    const model = activeCtx.model;
     if (model) {
       result.contextWindow = model.contextWindow;
       result.modelId = model.id;
@@ -670,7 +662,7 @@ function collectFooterContext(): FooterContextData {
   }
 
   try {
-    const usage = currentCtx.getContextUsage();
+    const usage = activeCtx.getContextUsage();
     if (usage) {
       result.tokens = usage.tokens;
       result.contextWindow = usage.contextWindow;
@@ -680,9 +672,9 @@ function collectFooterContext(): FooterContextData {
     if (!isStaleError(e)) throw e;
   }
 
-  if (api) {
+  if (extensionApi) {
     try {
-      result.thinkingLevel = api.getThinkingLevel();
+      result.thinkingLevel = extensionApi.getThinkingLevel();
     } catch (e) {
       if (!isStaleError(e)) throw e;
     }
@@ -693,7 +685,12 @@ function collectFooterContext(): FooterContextData {
 
 // ─── Main Render ─────────────────────────────────────────────────
 
-export function renderFooterLine(width: number, theme: Theme): string[] {
+export function renderFooterLine(
+  width: number,
+  theme: Theme,
+  activeCtx: typeof currentCtx = currentCtx,
+  extensionApi: typeof api = api,
+): string[] {
   try {
     const branch = footerDataProvider?.getGitBranch() ?? null;
     const statuses = footerDataProvider?.getExtensionStatuses();
@@ -702,14 +699,13 @@ export function renderFooterLine(width: number, theme: Theme): string[] {
     const piGitStatus = piGitStatusRaw ? parsePiGitStatus(piGitStatusRaw) : null;
 
     // Collect context data early (needed for width computation in fallback path)
-    const ctx = collectFooterContext();
+    const ctx = collectFooterContext(activeCtx, extensionApi);
     const contextStr = buildContextDisplay(ctx.tokens, ctx.contextWindow, ctx.percent, theme);
     const modelStr = buildModelDisplay(
       ctx.modelId,
       ctx.provider,
       ctx.hasReasoning,
       ctx.modelRegistry,
-      ctx.providerName,
       ctx.thinkingLevel,
       theme,
     );

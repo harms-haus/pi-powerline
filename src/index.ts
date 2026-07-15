@@ -23,7 +23,11 @@ import { invalidateCompressionCache } from "./path-compression.js";
 import { renderFooterLine } from "./footer";
 import { renderAboveWidget } from "./above-widget";
 
-function setupUI(ctx: ExtensionContext): void {
+function setupUI(
+  ctx: ExtensionContext,
+  getActiveCtx: () => ExtensionContext | undefined,
+  extensionApi: ExtensionAPI,
+): void {
   if (!ctx.hasUI) return;
 
   ctx.ui.setFooter((_tui, theme, footerData) => {
@@ -41,7 +45,7 @@ function setupUI(ctx: ExtensionContext): void {
       },
       invalidate() {},
       render(w: number): string[] {
-        return renderFooterLine(w, theme);
+        return renderFooterLine(w, theme, getActiveCtx(), extensionApi);
       },
     };
   });
@@ -69,13 +73,19 @@ function cleanup(): void {
 }
 
 export default function (pi: ExtensionAPI): void {
+  // pi caches and invokes the extension factory again for replacement sessions.
+  // Keep the render context local to this invocation so an old instance cannot
+  // overwrite the new footer with its soon-to-be-stale module-global context.
+  let activeCtx: ExtensionContext | undefined;
+
   setApi(pi);
 
   pi.on("session_start", (_event, ctx) => {
     if (!safeUpdateCtx(ctx)) return;
+    activeCtx = ctx;
     clearGitTimer();
     invalidateCompressionCache();
-    setupUI(ctx);
+    setupUI(ctx, () => activeCtx, pi);
     void refreshGitDiff();
     unsubCwdChange?.();
     unsubCwdChange = pi.events.on("cwd-change", () => {

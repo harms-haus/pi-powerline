@@ -507,8 +507,43 @@ describe("extension entry point", () => {
       const result = footerFactory(mockTui, mockTheme, mockFooterData);
 
       const lines = result.render(80);
-      expect(renderFooterLine).toHaveBeenCalledWith(80, mockTheme);
+      expect(renderFooterLine).toHaveBeenCalledWith(80, mockTheme, ctx, pi);
       expect(lines).toEqual(["test-line"]);
+    });
+
+    it("new footer keeps its replacement-session context after the old instance shuts down", async () => {
+      const { renderFooterLine } = await import("../footer");
+      const pi1 = createMockPi();
+      const ctx1 = createMockCtx(true);
+      extensionDefault(pi1 as never);
+      const oldSessionStart = getHandler("session_start");
+      const oldSessionShutdown = getHandler("session_shutdown");
+      oldSessionStart({}, ctx1);
+
+      handlers = {};
+      const pi2 = createMockPi();
+      const ctx2 = createMockCtx(true);
+      extensionDefault(pi2 as never);
+      getHandler("session_start")({}, ctx2);
+
+      // A late cleanup from the replaced instance must not change which
+      // context the replacement footer renders from.
+      oldSessionShutdown();
+
+      const footerFactory = ctx2.ui!.setFooter.mock.calls[0]![0] as (
+        tui: unknown,
+        theme: unknown,
+        footerData: unknown,
+      ) => { render: (w: number) => string[] };
+      const mockTui = { requestRender: vi.fn() };
+      const mockTheme = { fg: vi.fn((_c: string, t: string) => t) };
+      const mockFooterData = { onBranchChange: vi.fn(() => vi.fn()) };
+      const footer = footerFactory(mockTui, mockTheme, mockFooterData);
+
+      (renderFooterLine as ReturnType<typeof vi.fn>).mockClear();
+      footer.render(80);
+
+      expect(renderFooterLine).toHaveBeenCalledWith(80, mockTheme, ctx2, pi2);
     });
 
     it("footer onBranchChange triggers requestRender", () => {
